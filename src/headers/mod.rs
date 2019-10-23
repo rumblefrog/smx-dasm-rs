@@ -117,7 +117,7 @@ impl SMXHeader {
         let magic = data.read_u64::<LittleEndian>()?;
 
         if magic != FILE_MAGIC {
-            return Err(Error::InvalidFile)
+            return Err(Error::InvalidMagic)
         }
 
         let version = data.read_u16::<LittleEndian>()?;
@@ -127,13 +127,13 @@ impl SMXHeader {
         let disk_size = data.read_i32::<LittleEndian>()?;
 
         if disk_size < HEADER_SIZE {
-            return Err(Error::InvalidFile)
+            return Err(Error::InvalidSize)
         }
 
         let image_size = data.read_i32::<LittleEndian>()?;
 
         if image_size < HEADER_SIZE {
-            return Err(Error::InvalidFile)
+            return Err(Error::InvalidSize)
         }
 
         let section_count = data.read_u8()?;
@@ -141,13 +141,13 @@ impl SMXHeader {
         let string_table_offset = data.read_i32::<LittleEndian>()?;
 
         if string_table_offset < HEADER_SIZE {
-            return Err(Error::InvalidFile)
+            return Err(Error::InvalidOffset)
         }
 
         let data_offset = data.read_i32::<LittleEndian>()?;
 
         if data_offset < HEADER_SIZE {
-            return Err(Error::InvalidFile)
+            return Err(Error::InvalidOffset)
         }
 
         let mut p_data: Vec<u8> = Vec::with_capacity(image_size as usize);
@@ -183,7 +183,7 @@ impl SMXHeader {
                     name_offset = new_data.read_i32::<LittleEndian>()?;
 
                     if name_offset < 0 {
-                        return Err(Error::InvalidFile)
+                        return Err(Error::OffsetOverflow)
                     }
 
                     name_offset
@@ -192,7 +192,7 @@ impl SMXHeader {
                     let offset = new_data.read_i32::<LittleEndian>()?;
 
                     if offset < HEADER_SIZE {
-                        return Err(Error::InvalidFile)
+                        return Err(Error::OffsetOverflow)
                     }
 
                     offset
@@ -201,7 +201,7 @@ impl SMXHeader {
                     let size = new_data.read_i32::<LittleEndian>()?;
 
                     if size < 0 {
-                        return Err(Error::InvalidFile)
+                        return Err(Error::SizeOverflow)
                     }
 
                     size

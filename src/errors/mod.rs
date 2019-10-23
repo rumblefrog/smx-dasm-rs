@@ -9,7 +9,11 @@ pub type Result<T> = std::result::Result<T, Error>;
 pub enum Error {
     Io(IoError),
 
-    InvalidFile,
+    InvalidMagic,
+    InvalidSize,
+    InvalidOffset,
+    OffsetOverflow,
+    SizeOverflow,
 
     Other(&'static str),
 }
@@ -33,7 +37,11 @@ impl StdError for Error {
     fn description(&self) -> &str {
         match *self {
             Error::Io(ref inner) => inner.description(),
-            Error::InvalidFile => "Invalid file",
+            Error::InvalidMagic => "Invalid magic header",
+            Error::InvalidSize => "Invalid size",
+            Error::InvalidOffset => "Invalid offset",
+            Error::OffsetOverflow => "Offset overflow",
+            Error::SizeOverflow => "Size overflow",
             Error::Other(msg) => msg,
         }
     }
