@@ -28,23 +28,6 @@ impl fmt::Display for CompressionType {
     }
 }
 
-pub const FILE_MAGIC: u32 = 0x53504646;
-
-// File format version number.
-//
-// The major version bits (8-15) indicate a product number. Consumers
-// should reject any version for a different product.
-//
-// The minor version bits (0-7) indicate a compatibility revision. Any
-// version higher than the current version should be rejected.
-pub const SP1_VERSION_1_0: u16 = 0x0101;
-pub const SP1_VERSION_1_1: u16 = 0x0102;
-pub const SP1_VERSION_MIN: u16 = SP1_VERSION_1_0;
-pub const SP1_VERSION_MAX: u16 = SP1_VERSION_1_1;
-
-// Size of the header.
-pub const HEADER_SIZE: i32 = 24;
-
 pub struct SMXHeader {
     pub magic: u32,
 
@@ -122,12 +105,29 @@ impl ReadCString for Cursor<&[u8]> {
 }
 
 impl SMXHeader {
+    pub const FILE_MAGIC: u32 = 0x53504646;
+
+    // File format version number.
+    //
+    // The major version bits (8-15) indicate a product number. Consumers
+    // should reject any version for a different product.
+    //
+    // The minor version bits (0-7) indicate a compatibility revision. Any
+    // version higher than the current version should be rejected.
+    pub const SP1_VERSION_1_0: u16 = 0x0101;
+    pub const SP1_VERSION_1_1: u16 = 0x0102;
+    pub const SP1_VERSION_MIN: u16 = SMXHeader::SP1_VERSION_1_0;
+    pub const SP1_VERSION_MAX: u16 = SMXHeader::SP1_VERSION_1_1;
+
+    // Size of the header.
+    const HEADER_SIZE: i32 = 24;
+
     pub fn new(data: Vec<u8>) -> Result<SMXHeader> {
         let mut data = Cursor::new(data);
 
         let magic = data.read_u32::<LittleEndian>()?;
 
-        if magic != FILE_MAGIC {
+        if magic != SMXHeader::FILE_MAGIC {
             return Err(Error::InvalidMagic)
         }
 
@@ -137,13 +137,13 @@ impl SMXHeader {
 
         let disk_size = data.read_i32::<LittleEndian>()?;
 
-        if disk_size < HEADER_SIZE {
+        if disk_size < SMXHeader::HEADER_SIZE {
             return Err(Error::InvalidSize)
         }
 
         let image_size = data.read_i32::<LittleEndian>()?;
 
-        if image_size < HEADER_SIZE {
+        if image_size < SMXHeader::HEADER_SIZE {
             return Err(Error::InvalidSize)
         }
 
@@ -151,26 +151,26 @@ impl SMXHeader {
 
         let string_table_offset = data.read_i32::<LittleEndian>()?;
 
-        if string_table_offset < HEADER_SIZE {
+        if string_table_offset < SMXHeader::HEADER_SIZE {
             return Err(Error::InvalidOffset)
         }
 
         let data_offset = data.read_i32::<LittleEndian>()?;
 
-        if data_offset < HEADER_SIZE {
+        if data_offset < SMXHeader::HEADER_SIZE {
             return Err(Error::InvalidOffset)
         }
 
         let mut p_data: Vec<u8> = Vec::with_capacity(image_size as usize);
 
-        p_data.extend(&data.get_ref()[..HEADER_SIZE as usize]);
+        p_data.extend(&data.get_ref()[..SMXHeader::HEADER_SIZE as usize]);
 
         match compression_type {
             CompressionType::CompressionNone => {
-                p_data.extend(&data.get_ref()[HEADER_SIZE as usize..(image_size - HEADER_SIZE) as usize]);
+                p_data.extend(&data.get_ref()[SMXHeader::HEADER_SIZE as usize..(image_size - SMXHeader::HEADER_SIZE) as usize]);
             },
             CompressionType::CompressionGZ => {
-                p_data.extend(&data.get_ref()[HEADER_SIZE as usize..(data_offset - HEADER_SIZE) as usize]);
+                p_data.extend(&data.get_ref()[SMXHeader::HEADER_SIZE as usize..(data_offset - SMXHeader::HEADER_SIZE) as usize]);
 
                 let mut decoder = ZlibDecoder::new(&data.get_ref()[data_offset as usize..]);
 
@@ -182,7 +182,7 @@ impl SMXHeader {
 
         let mut new_data = Cursor::new(p_data);
 
-        new_data.seek(SeekFrom::Start(HEADER_SIZE as u64))?;
+        new_data.seek(SeekFrom::Start(SMXHeader::HEADER_SIZE as u64))?;
 
         let mut sections: Vec<SectionEntry> = Vec::with_capacity(section_count as usize);
 
@@ -204,7 +204,7 @@ impl SMXHeader {
                 data_offset: {
                     let offset = new_data.read_i32::<LittleEndian>()?;
 
-                    if offset < HEADER_SIZE {
+                    if offset < SMXHeader::HEADER_SIZE {
                         return Err(Error::OffsetOverflow)
                     }
 
@@ -234,7 +234,7 @@ impl SMXHeader {
         }
 
         Ok(SMXHeader{
-            magic: FILE_MAGIC,
+            magic: SMXHeader::FILE_MAGIC,
             version: version,
             compression_type: compression_type,
             disk_size: disk_size,
@@ -244,7 +244,7 @@ impl SMXHeader {
             data_offset: data_offset,
             data: cloned_data,
             sections: sections,
-            debug_packed: (version == SP1_VERSION_1_0) && !found_dbg_section,
+            debug_packed: (version == SMXHeader::SP1_VERSION_1_0) && !found_dbg_section,
         })
     }
 
