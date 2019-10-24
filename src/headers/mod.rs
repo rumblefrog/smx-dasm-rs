@@ -270,7 +270,7 @@ impl fmt::Debug for SMXHeader {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct SectionEntry {
     // Offset into the string table.
     pub name_offset: i32,
