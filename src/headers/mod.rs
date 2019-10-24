@@ -1,8 +1,10 @@
-use std::io::{Read, Cursor};
+use std::io::{Read, Seek, SeekFrom, Cursor};
 use byteorder::{ReadBytesExt, LittleEndian};
-use flate2::read::GzDecoder;
+use flate2::read::ZlibDecoder;
+use std::fmt;
 use crate::errors::{Result, Error};
 
+#[derive(Debug)]
 pub enum CompressionType {
     CompressionNone,
     CompressionGZ,
@@ -17,7 +19,16 @@ impl From<u8> for CompressionType {
     }
 }
 
-pub const FILE_MAGIC: u64 = 0x53504646;
+impl fmt::Display for CompressionType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            CompressionType::CompressionGZ => writeln!(f, "GZip"),
+            CompressionType::CompressionNone => writeln!(f, "None"),
+        }
+    }
+}
+
+pub const FILE_MAGIC: u32 = 0x53504646;
 
 // File format version number.
 //
@@ -35,7 +46,7 @@ pub const SP1_VERSION_MAX: u16 = SP1_VERSION_1_1;
 pub const HEADER_SIZE: i32 = 24;
 
 pub struct SMXHeader {
-    pub magic: u64,
+    pub magic: u32,
 
     pub version: u16,
 
@@ -114,7 +125,7 @@ impl SMXHeader {
     pub fn new(data: Vec<u8>) -> Result<SMXHeader> {
         let mut data = Cursor::new(data);
 
-        let magic = data.read_u64::<LittleEndian>()?;
+        let magic = data.read_u32::<LittleEndian>()?;
 
         if magic != FILE_MAGIC {
             return Err(Error::InvalidMagic)
@@ -161,7 +172,7 @@ impl SMXHeader {
             CompressionType::CompressionGZ => {
                 p_data.extend(&data.get_ref()[HEADER_SIZE as usize..(data_offset - HEADER_SIZE) as usize]);
 
-                let mut decoder = GzDecoder::new(&data.get_ref()[(disk_size - data_offset) as usize..]);
+                let mut decoder = ZlibDecoder::new(&data.get_ref()[data_offset as usize..]);
 
                 decoder.read_to_end(&mut p_data)?;
             }
@@ -170,6 +181,8 @@ impl SMXHeader {
         let cloned_data = p_data.clone();
 
         let mut new_data = Cursor::new(p_data);
+
+        new_data.seek(SeekFrom::Start(HEADER_SIZE as u64))?;
 
         let mut sections: Vec<SectionEntry> = Vec::with_capacity(section_count as usize);
 
@@ -207,7 +220,9 @@ impl SMXHeader {
                     size
                 },
                 name: {
-                    let name = Cursor::new(&cloned_data[string_table_offset as usize + name_offset as usize..]).read_cstring()?;
+                    let mut cursor = Cursor::new(&cloned_data[string_table_offset as usize + name_offset as usize..]);
+
+                    let name = cursor.read_cstring()?;
 
                     if name == ".dbg.natives" {
                         found_dbg_section = true;
@@ -240,6 +255,22 @@ impl SMXHeader {
     // }
 }
 
+impl fmt::Debug for SMXHeader {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        writeln!(f, "Magic: {}", self.magic)?;
+        writeln!(f, "Version: {}", self.version)?;
+        writeln!(f, "Compression Type: {}", self.compression_type)?;
+        writeln!(f, "Disk Size: {}", self.disk_size)?;
+        writeln!(f, "Image Size: {}", self.image_size)?;
+        writeln!(f, "Section Count: {}", self.section_count)?;
+        writeln!(f, "String Table Offset: {}", self.string_table_offset)?;
+        writeln!(f, "Data Offset: {}", self.data_offset)?;
+        writeln!(f, "Sections: {:?}", self.sections)?;
+        writeln!(f, "Debug Packed: {}", self.debug_packed)
+    }
+}
+
+#[derive(Debug)]
 pub struct SectionEntry {
     // Offset into the string table.
     pub name_offset: i32,
