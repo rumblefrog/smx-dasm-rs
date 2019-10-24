@@ -105,6 +105,7 @@ impl ReadCString for Cursor<&[u8]> {
 }
 
 impl SMXHeader {
+    // SourcePawn File Format magic number.
     pub const FILE_MAGIC: u32 = 0x53504646;
 
     // File format version number.
