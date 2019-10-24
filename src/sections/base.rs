@@ -9,8 +9,8 @@ pub struct BaseSection {
 impl BaseSection {
     pub fn new(header: SMXHeader, section: SectionEntry) -> Self {
         BaseSection {
-            header: header,
-            section: section,
+            header,
+            section,
         }
     }
 

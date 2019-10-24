@@ -91,7 +91,7 @@ impl ReadCString for Cursor<&[u8]> {
         let mut str_vec = Vec::with_capacity(256);
 
         loop {
-            self.read(&mut buf)?;
+            self.read_exact(&mut buf)?;
 
             if buf[0] == 0 { 
                 break; 
@@ -106,7 +106,7 @@ impl ReadCString for Cursor<&[u8]> {
 
 impl SMXHeader {
     // SourcePawn File Format magic number.
-    pub const FILE_MAGIC: u32 = 0x53504646;
+    pub const FILE_MAGIC: u32 = 0x5350_4646;
 
     // File format version number.
     //
@@ -236,15 +236,15 @@ impl SMXHeader {
 
         Ok(SMXHeader{
             magic: SMXHeader::FILE_MAGIC,
-            version: version,
-            compression_type: compression_type,
-            disk_size: disk_size,
-            image_size: image_size,
-            section_count: section_count,
-            string_table_offset: string_table_offset,
-            data_offset: data_offset,
+            version,
+            compression_type,
+            disk_size,
+            image_size,
+            section_count,
+            string_table_offset,
+            data_offset,
             data: cloned_data,
-            sections: sections,
+            sections,
             debug_packed: (version == SMXHeader::SP1_VERSION_1_0) && !found_dbg_section,
         })
     }

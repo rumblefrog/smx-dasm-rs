@@ -6,7 +6,7 @@ pub enum CodeV1Flags {
 impl CodeV1Flags {
     pub fn value(&self) -> u16 {
         match *self {
-            CodeV1Flags::Debug => 0x00000001,
+            CodeV1Flags::Debug => 0x0000_0001,
         }
     }
 }
