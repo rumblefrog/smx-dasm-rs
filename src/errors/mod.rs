@@ -12,6 +12,7 @@ pub enum Error {
     InvalidMagic,
     InvalidSize,
     InvalidOffset,
+    InvalidIndex,
     OffsetOverflow,
     SizeOverflow,
 
@@ -40,6 +41,7 @@ impl StdError for Error {
             Error::InvalidMagic => "Invalid magic header",
             Error::InvalidSize => "Invalid size",
             Error::InvalidOffset => "Invalid offset",
+            Error::InvalidIndex => "Invalid index",
             Error::OffsetOverflow => "Offset overflow",
             Error::SizeOverflow => "Size overflow",
             Error::Other(msg) => msg,

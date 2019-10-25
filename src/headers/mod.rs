@@ -4,7 +4,7 @@ use flate2::read::ZlibDecoder;
 use std::fmt;
 use crate::errors::{Result, Error};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum CompressionType {
     CompressionNone,
     CompressionGZ,
@@ -28,6 +28,7 @@ impl fmt::Display for CompressionType {
     }
 }
 
+#[derive(Clone)]
 pub struct SMXHeader {
     pub magic: u32,
 
@@ -168,10 +169,10 @@ impl SMXHeader {
 
         match compression_type {
             CompressionType::CompressionNone => {
-                p_data.extend(&data.get_ref()[SMXHeader::HEADER_SIZE as usize..(image_size - SMXHeader::HEADER_SIZE) as usize]);
+                p_data.extend(&data.get_ref()[SMXHeader::HEADER_SIZE as usize..image_size as usize]);
             },
             CompressionType::CompressionGZ => {
-                p_data.extend(&data.get_ref()[SMXHeader::HEADER_SIZE as usize..(data_offset - SMXHeader::HEADER_SIZE) as usize]);
+                p_data.extend(&data.get_ref()[SMXHeader::HEADER_SIZE as usize..data_offset as usize]);
 
                 let mut decoder = ZlibDecoder::new(&data.get_ref()[data_offset as usize..]);
 
