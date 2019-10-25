@@ -90,12 +90,12 @@ impl CB {
 
         loop {
             let b: u8 = bytes.get_ref().as_ref()[*offset as usize];
-            *offset = *offset + 1;
-            value = value | ((b & 0x7f) << shift) as u32;
+            *offset += 1;
+            value |= ((b & 0x7f) << shift) as u32;
             if (b & 0x80) == 0 {
                 break;
             }
-            shift = shift + 7;
+            shift += 7;
         }
 
         value as i32
