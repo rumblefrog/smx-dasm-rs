@@ -77,8 +77,6 @@ impl SMXNameTable {
             return Err(Error::InvalidIndex)
         }
 
-        let mut length: i32 = 0;
-
         let mut str_vec = Vec::with_capacity(256);
 
         for i in *index..self.base.section.size {
@@ -87,8 +85,6 @@ impl SMXNameTable {
             }
 
             str_vec.push(self.base.header.data[(self.base.section.data_offset + i) as usize]);
-
-            length = length + 1
         }
 
         Ok(String::from_utf8_lossy(&str_vec[..]).into_owned())
