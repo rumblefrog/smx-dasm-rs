@@ -54,25 +54,22 @@ impl CodeV1Header {
     {
         let mut cursor = Cursor::new(data);
 
-        let mut read_features: bool = false;
+        let code_size = cursor.read_i32::<LittleEndian>()?;
+        let cell_size = cursor.read_u8()?;
+        let code_version = cursor.read_u8()?;
+        let flags = cursor.read_u16::<LittleEndian>()?;
+        let main_offset = cursor.read_i32::<LittleEndian>()?;
+        let code_offset = cursor.read_i32::<LittleEndian>()?;
 
         Ok(Self {
-            code_size: cursor.read_i32::<LittleEndian>()?,
-            cell_size: cursor.read_u8()?,
-            code_version: {
-                let code_version = cursor.read_u8()?;
-
-                if code_version >= 13 {
-                    read_features = true;
-                }
-
-                code_version
-            },
-            flags: cursor.read_u16::<LittleEndian>()?,
-            main_offset: cursor.read_i32::<LittleEndian>()?,
-            code_offset: cursor.read_i32::<LittleEndian>()?,
+            code_size,
+            cell_size,
+            code_version,
+            flags,
+            main_offset,
+            code_offset,
             features: {
-                if read_features {
+                if code_version >= 13 {
                     cursor.read_i32::<LittleEndian>()?;
                 }
 
@@ -141,16 +138,13 @@ impl PublicEntry {
         let mut cursor = Cursor::new(data);
 
         for _ in 0..count {
-            let name_offset: i32;
+            let address = cursor.read_u32::<LittleEndian>()?;
+            let name_offset = cursor.read_i32::<LittleEndian>()?;
 
             entries.push(PublicEntry {
-                address: cursor.read_u32::<LittleEndian>()?,
-                name_offset: {
-                    name_offset = cursor.read_i32::<LittleEndian>()?;
-
-                    name_offset
-                },
-                name: names.string_at(&name_offset)?,
+                address,
+                name_offset,
+                name: names.string_at(name_offset)?,
             })
         }
 

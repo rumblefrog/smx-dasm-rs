@@ -60,7 +60,7 @@ impl SMXNameTable {
 
     // Returns a list of all root indexes that map to strings.
     pub fn get_extends(&mut self) -> Vec<i32> {
-        if self.extends.len() == 0 {
+        if self.extends.is_empty() {
             self.compute_extends();
         }
 
@@ -68,18 +68,18 @@ impl SMXNameTable {
     }
 
     // Returns a string at a given index.
-    pub fn string_at(&mut self, index: &i32) -> Result<String> {
-        if self.names.contains_key(index) {
-            return Ok(self.names.get(index).unwrap().clone())
+    pub fn string_at(&mut self, index: i32) -> Result<String> {
+        if self.names.contains_key(&index) {
+            return Ok(self.names.get(&index).unwrap().clone())
         }
 
-        if index >= &self.base.section.size {
+        if index >= self.base.section.size {
             return Err(Error::InvalidIndex)
         }
 
         let mut str_vec = Vec::with_capacity(256);
 
-        for i in *index..self.base.section.size {
+        for i in index..self.base.section.size {
             if self.base.header.data[(self.base.section.data_offset + i) as usize] == 0 {
                 break;
             }
