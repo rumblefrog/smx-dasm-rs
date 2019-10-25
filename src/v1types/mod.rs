@@ -351,7 +351,7 @@ pub struct DebugFileEntry {
 impl DebugFileEntry {
     pub const SIZE: i32 = 8;
 
-    pub fn new<T>(data: T, section: SectionEntry, mut names: SMXNameTable) -> Result<Vec<Self>>
+    pub fn new<T>(data: T, section: &SectionEntry, names: &mut SMXNameTable) -> Result<Vec<Self>>
     where
         T: AsRef<[u8]>,
     {
@@ -393,7 +393,7 @@ pub struct DebugLineEntry {
 impl DebugLineEntry {
     pub const SIZE: i32 = 8;
 
-    pub fn new<T>(data: T, section: SectionEntry) -> Result<Vec<Self>>
+    pub fn new<T>(data: T, section: &SectionEntry) -> Result<Vec<Self>>
     where
         T: AsRef<[u8]>,
     {

@@ -126,6 +126,7 @@ impl SMXNativeTable {
 }
 
 // The .publics table.
+#[derive(Debug, Clone)]
 pub struct SMXPublicTable {
     publics: Vec<PublicEntry>,
 }
@@ -155,7 +156,7 @@ impl SMXPublicTable {
     }
 }
 
-#[derive(Default)]
+#[derive(Debug, Clone, Default)]
 pub struct SMXCalledFunctionsTable {
     functions: Vec<CalledFunctionEntry>,
 }
@@ -190,6 +191,7 @@ impl SMXCalledFunctionsTable {
 }
 
 // The .pubvars table.
+#[derive(Debug, Clone)]
 pub struct SMXPubvarTable {
     public_variables: Vec<PubvarEntry>,
 }
@@ -219,6 +221,7 @@ impl SMXPubvarTable {
     }
 }
 
+#[derive(Debug, Clone)]
 pub enum TagFlags {
     Fixed,
     Function,
@@ -275,6 +278,7 @@ impl Tag {
 }
 
 // The .tags table.
+#[derive(Debug, Clone)]
 pub struct SMXTagTable {
     tags: Vec<Tag>,
 
@@ -340,6 +344,7 @@ impl SMXTagTable {
 }
 
 // The .data section.
+#[derive(Debug, Clone)]
 pub struct SMXDataSection<'b> {
     base: BaseSection<'b>,
 
@@ -365,5 +370,184 @@ impl<'b> SMXDataSection<'b> {
 
     pub fn header(&self) -> DataHeader {
         self.data_header.clone()
+    }
+}
+
+// The .code section.
+#[derive(Debug, Clone)]
+pub struct SMXCodeV1Section<'b> {
+    base: BaseSection<'b>,
+
+    code_header: CodeV1Header,
+}
+
+impl<'b> SMXCodeV1Section<'b> {
+    pub fn new(header: &'b SMXHeader, section: &'b SectionEntry) -> Result<Self> {
+        let base = BaseSection::new(header, section);
+        let code_header = CodeV1Header::new(base.get_data())?;
+
+        Ok(Self {
+            base,
+            code_header,
+        })
+    }
+
+    pub fn get_data_vec(&self) -> Vec<u8> {
+        let start = self.base.section.data_offset + self.code_header.code_offset;
+
+        Vec::from(&self.base.header.data[start as usize..(start + self.code_header.code_size) as usize])
+    }
+
+    pub fn header(&self) -> CodeV1Header {
+        self.code_header.clone()
+    }
+
+    pub fn code_start(&self) -> i32 {
+        self.base.header.data_offset + self.code_header.code_offset
+    }
+}
+
+// The .dbg.info section.
+#[derive(Debug, Clone)]
+pub struct SMXDebugInfoSection {
+    info: DebugInfoHeader,
+}
+
+impl SMXDebugInfoSection {
+    pub fn new(header: &SMXHeader, section: &SectionEntry) -> Result<Self> {
+        let base = BaseSection::new(header, section);
+        let info = DebugInfoHeader::new(base.get_data())?;
+
+        Ok(Self {
+            info,
+        })
+    }
+
+    pub fn file_count(&self) -> i32 {
+        self.info.file_count
+    }
+
+    pub fn line_count(&self) -> i32 {
+        self.info.line_count
+    }
+
+    pub fn symbol_count(&self) -> i32 {
+        self.info.symbol_count
+    }
+
+    pub fn array_count(&self) -> i32 {
+        self.info.array_count
+    }
+}
+
+// The .dbg.files table.
+#[derive(Debug, Clone)]
+pub struct SMXDebugFilesTable {
+    entries: Vec<DebugFileEntry>,
+}
+
+impl SMXDebugFilesTable {
+    pub fn new(header: &SMXHeader, section: &SectionEntry, names: &mut SMXNameTable) -> Result<Self> {
+        let base = BaseSection::new(header, section);
+        let entries = DebugFileEntry::new(base.get_data(), section, names)?;
+
+        Ok(Self {
+            entries,
+        })
+    }
+
+    pub fn find_file(&self, addr: u32) -> Option<String> {
+        let mut high = self.len() as i32;
+        let mut low = -1;
+
+        while high - low > 1 {
+            let mid = (low + high) / 2;
+
+            if self.entries[mid as usize].address <= addr {
+                low = mid;
+            } else {
+                high = mid;
+            }
+        }
+
+        if low == -1 {
+            return None;
+        }
+
+        Some(self.entries[low as usize].name.clone())
+    }
+
+    // Return a copy of the tag vector
+    pub fn entries(&self) -> Vec<DebugFileEntry> {
+        self.entries.clone()
+    }
+
+    // Return immutable cloned copy at index
+    pub fn get_entry(&self, index: usize) -> DebugFileEntry {
+        self.entries[index].clone()
+    }
+
+    pub fn len(&self) -> usize {
+        self.entries.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.entries.is_empty()
+    }
+}
+
+// The .dbg.lines table.
+#[derive(Debug, Clone)]
+pub struct SMXDebugLinesTable {
+    entries: Vec<DebugLineEntry>,
+}
+
+impl SMXDebugLinesTable {
+    pub fn new(header: &SMXHeader, section: &SectionEntry) -> Result<Self> {
+        let base = BaseSection::new(header, section);
+        let entries = DebugLineEntry::new(base.get_data(), section)?;
+
+        Ok(Self {
+            entries,
+        })
+    }
+
+    pub fn find_file(&self, addr: u32) -> Option<u32> {
+        let mut high = self.len() as i32;
+        let mut low = -1;
+
+        while high - low > 1 {
+            let mid = (low + high) / 2;
+
+            if self.entries[mid as usize].address <= addr {
+                low = mid;
+            } else {
+                high = mid;
+            }
+        }
+
+        if low == -1 {
+            return None;
+        }
+
+        Some(self.entries[low as usize].line + 1)
+    }
+
+    // Return a copy of the tag vector
+    pub fn entries(&self) -> Vec<DebugLineEntry> {
+        self.entries.clone()
+    }
+
+    // Return immutable cloned copy at index
+    pub fn get_entry(&self, index: usize) -> DebugLineEntry {
+        self.entries[index].clone()
+    }
+
+    pub fn len(&self) -> usize {
+        self.entries.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.entries.is_empty()
     }
 }
