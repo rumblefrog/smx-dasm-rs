@@ -155,6 +155,7 @@ impl SMXPublicTable {
     }
 }
 
+#[derive(Default)]
 pub struct SMXCalledFunctionsTable {
     functions: Vec<CalledFunctionEntry>,
 }
@@ -230,12 +231,12 @@ pub enum TagFlags {
 impl TagFlags {
     pub fn value(&self) -> u32 {
         match *self {
-            TagFlags::Fixed => 0x40000000,
-            TagFlags::Function => 0x20000000,
-            TagFlags::Object => 0x10000000,
-            TagFlags::Enum => 0x08000000,
-            TagFlags::MethodMap => 0x04000000,
-            TagFlags::Struct => 0x02000000,
+            TagFlags::Fixed => 0x4000_0000,
+            TagFlags::Function => 0x2000_0000,
+            TagFlags::Object => 0x1000_0000,
+            TagFlags::Enum => 0x0800_0000,
+            TagFlags::MethodMap => 0x0400_0000,
+            TagFlags::Struct => 0x0200_0000,
         }
     }
 }
@@ -290,8 +291,8 @@ impl SMXTagTable {
             cache: HashMap::new(),
         };
 
-        for i in 0..tags.len() {
-            tt.tags.push(Tag::new(tags[i].to_owned()))
+        for tag in tags {
+            tt.tags.push(Tag::new(tag.to_owned()))
         }
 
         Ok(tt)
@@ -331,6 +332,10 @@ impl SMXTagTable {
 
     pub fn len(&self) -> usize {
         self.tags.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.tags.is_empty()
     }
 }
 

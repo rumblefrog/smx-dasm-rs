@@ -264,12 +264,12 @@ impl TagEntry {
     pub const SIZE: i32 = 8;
 
     // Various tags that can be on a tag id.
-    pub const FIXED: u32 = 0x40000000;
-    pub const FUNC: u32 = 0x20000000;
-    pub const OBJECT: u32 = 0x10000000;
-    pub const ENUM: u32 = 0x08000000;
-    pub const METHODMAP: u32 = 0x04000000;
-    pub const STRUCT: u32 = 0x02000000;
+    pub const FIXED: u32 = 0x4000_0000;
+    pub const FUNC: u32 = 0x2000_0000;
+    pub const OBJECT: u32 = 0x1000_0000;
+    pub const ENUM: u32 = 0x0800_0000;
+    pub const METHODMAP: u32 = 0x0400_0000;
+    pub const STRUCT: u32 = 0x0200_0000;
     pub const FLAGMASK: u32 = 
         (Self::FIXED |
         Self:: FUNC |
