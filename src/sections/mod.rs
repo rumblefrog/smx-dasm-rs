@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use crate::headers::{SMXHeader, SectionEntry};
 use crate::v1types::*;
+use crate::rtti::SMXRTTIListTable;
 use crate::errors::{Result, Error};
 
 #[derive(Debug, Clone)]
@@ -333,14 +334,14 @@ impl SMXTagTable {
 
 // The .data section.
 #[derive(Debug, Clone)]
-pub struct SMXDataSection<'b> {
-    base: BaseSection<'b>,
+pub struct SMXDataSection<'a> {
+    base: BaseSection<'a>,
 
     data_header: DataHeader,
 }
 
-impl<'b> SMXDataSection<'b> {
-    pub fn new(header: &'b SMXHeader, section: &'b SectionEntry) -> Result<Self> {
+impl<'a> SMXDataSection<'a> {
+    pub fn new(header: &'a SMXHeader, section: &'a SectionEntry) -> Result<Self> {
         let base = BaseSection::new(header, section);
         let data_header = DataHeader::new(base.get_data())?;
 
@@ -363,14 +364,14 @@ impl<'b> SMXDataSection<'b> {
 
 // The .code section.
 #[derive(Debug, Clone)]
-pub struct SMXCodeV1Section<'b> {
-    base: BaseSection<'b>,
+pub struct SMXCodeV1Section<'a> {
+    base: BaseSection<'a>,
 
     code_header: CodeV1Header,
 }
 
-impl<'b> SMXCodeV1Section<'b> {
-    pub fn new(header: &'b SMXHeader, section: &'b SectionEntry) -> Result<Self> {
+impl<'a> SMXCodeV1Section<'a> {
+    pub fn new(header: &'a SMXHeader, section: &'a SectionEntry) -> Result<Self> {
         let base = BaseSection::new(header, section);
         let code_header = CodeV1Header::new(base.get_data())?;
 
@@ -539,3 +540,114 @@ impl SMXDebugLinesTable {
         self.entries.is_empty()
     }
 }
+
+#[derive(Debug, Clone)]
+pub struct SMXDebugMethods {
+    entries: Vec<DebugMethodEntry>,
+}
+
+impl SMXDebugMethods {
+    pub fn new(header: &SMXHeader, section: &SectionEntry) -> Result<Self> {
+        let base = BaseSection::new(header, section);
+        let mut rtti = SMXRTTIListTable::new(header, section);
+
+        rtti.init(base.get_data())?;
+
+        let mut entries: Vec<DebugMethodEntry> = Vec::with_capacity(rtti.row_count() as usize);
+
+        for _ in 0..rtti.row_count() {
+            entries.push(DebugMethodEntry::new(base.get_data())?)
+        }
+
+        Ok(Self {
+            entries,
+        })
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct SMXDebugSymbols {
+    entries: Vec<DebugVarEntry>,
+
+    address_sorted: Vec<DebugVarEntry>,
+}
+
+impl SMXDebugSymbols {
+    pub fn new(header: &SMXHeader, section: &SectionEntry) -> Result<Self> {
+        let base = BaseSection::new(header, section);
+        let mut rtti = SMXRTTIListTable::new(header, section);
+
+        rtti.init(base.get_data())?;
+
+        let mut entries: Vec<DebugVarEntry> = Vec::with_capacity(rtti.row_count() as usize);
+
+        for _ in 0..rtti.row_count() {
+            entries.push(DebugVarEntry::new(base.get_data())?)
+        }
+
+        Ok(Self {
+            entries,
+            address_sorted: Vec::with_capacity(rtti.row_count() as usize),
+        })
+    }
+
+    pub fn ensure_sorted_addresses(&mut self) -> &Self {
+        if !self.address_sorted.is_empty() {
+            return self
+        }
+
+        self.address_sorted.sort_by(|a, b| b.address.cmp(&a.address));
+
+        self
+    }
+
+    pub fn entries(&self) -> Vec<DebugVarEntry> {
+        self.entries.clone()
+    }
+
+    pub fn address_sorted(&self) -> Vec<DebugVarEntry> {
+        self.address_sorted.clone()
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct SMXDebugGlobals {
+    debug_symbols: SMXDebugSymbols,
+}
+
+impl SMXDebugGlobals {
+    pub fn new(header: &SMXHeader, section: &SectionEntry) -> Result<Self> {
+        Ok(Self {
+            debug_symbols: SMXDebugSymbols::new(header, section)?,
+        })
+    }
+
+    pub fn find_global(&mut self, addr: i32) -> Option<DebugVarEntry> {
+        self.debug_symbols.ensure_sorted_addresses();
+
+        for i in 0..self.debug_symbols.address_sorted.len() {
+            let sym = &self.debug_symbols.address_sorted[i];
+
+            if sym.address == addr {
+                return Some(sym.clone())
+            }
+
+            if addr < sym.address {
+                break;
+            }
+
+            if i == self.debug_symbols.address_sorted.len() -1 {
+                break;
+            }
+
+            let next_sym = &self.debug_symbols.address_sorted[i + 1];
+
+            if addr > sym.address && addr < next_sym.address {
+                return Some(sym.clone())
+            }
+        }
+
+        None
+    }
+}
+
