@@ -48,7 +48,10 @@ impl CodeV1Header {
     pub const VERSION_JIT1: u8 = 9;
     pub const VERSION_JIT2: u8 = 10;
 
-    pub fn new(data: Vec<u8>) -> Result<Self> {
+    pub fn new<T>(data: T) -> Result<Self>
+    where
+        T: AsRef<[u8]>
+    {
         let mut cursor = Cursor::new(data);
 
         let mut read_features: bool = false;
@@ -94,7 +97,10 @@ pub struct DataHeader {
 impl DataHeader {
     pub const SIZE: i32 = 12;
 
-    pub fn new(data: Vec<u8>) -> Result<Self> {
+    pub fn new<T>(data: T) -> Result<Self>
+    where
+        T: AsRef<[u8]>,
+    {
         let mut cursor = Cursor::new(data);
 
         Ok(Self {
@@ -120,7 +126,10 @@ pub struct PublicEntry {
 impl PublicEntry {
     pub const SIZE: i32 = 8;
 
-    pub fn new(data: Vec<u8>, section: SectionEntry, mut names: SMXNameTable) -> Result<Vec<Self>> {
+    pub fn new<T>(data: T, section: SectionEntry, mut names: SMXNameTable) -> Result<Vec<Self>>
+    where
+        T: AsRef<[u8]>,
+    {
         if section.size & PublicEntry::SIZE != 0 {
             return Err(Error::InvalidSize)
         }

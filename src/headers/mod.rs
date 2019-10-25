@@ -124,7 +124,10 @@ impl SMXHeader {
     // Size of the header.
     const HEADER_SIZE: i32 = 24;
 
-    pub fn new(data: Vec<u8>) -> Result<SMXHeader> {
+    pub fn new<T>(data: T) -> Result<SMXHeader>
+    where
+        T: AsRef<[u8]>,
+    {
         let mut data = Cursor::new(data);
 
         let magic = data.read_u32::<LittleEndian>()?;
@@ -165,16 +168,16 @@ impl SMXHeader {
 
         let mut p_data: Vec<u8> = Vec::with_capacity(image_size as usize);
 
-        p_data.extend(&data.get_ref()[..SMXHeader::HEADER_SIZE as usize]);
+        p_data.extend(&data.get_ref().as_ref()[..SMXHeader::HEADER_SIZE as usize]);
 
         match compression_type {
             CompressionType::CompressionNone => {
-                p_data.extend(&data.get_ref()[SMXHeader::HEADER_SIZE as usize..image_size as usize]);
+                p_data.extend(&data.get_ref().as_ref()[SMXHeader::HEADER_SIZE as usize..image_size as usize]);
             },
             CompressionType::CompressionGZ => {
-                p_data.extend(&data.get_ref()[SMXHeader::HEADER_SIZE as usize..data_offset as usize]);
+                p_data.extend(&data.get_ref().as_ref()[SMXHeader::HEADER_SIZE as usize..data_offset as usize]);
 
-                let mut decoder = ZlibDecoder::new(&data.get_ref()[data_offset as usize..]);
+                let mut decoder = ZlibDecoder::new(&data.get_ref().as_ref()[data_offset as usize..]);
 
                 decoder.read_to_end(&mut p_data)?;
             }
