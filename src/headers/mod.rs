@@ -8,13 +8,15 @@ use crate::errors::{Result, Error};
 pub enum CompressionType {
     CompressionNone,
     CompressionGZ,
+    CompressionUnknown,
 }
 
 impl From<u8> for CompressionType {
     fn from(byte: u8) -> Self {
         match byte {
+            0 => Self::CompressionNone,
             1 => Self::CompressionGZ,
-            _ => Self::CompressionNone,
+            _ => Self::CompressionUnknown,
         }
     }
 }
@@ -24,6 +26,7 @@ impl fmt::Display for CompressionType {
         match self {
             CompressionType::CompressionGZ => writeln!(f, "GZip"),
             CompressionType::CompressionNone => writeln!(f, "None"),
+            CompressionType::CompressionUnknown => writeln!(f, "Unknown"),
         }
     }
 }
@@ -180,6 +183,9 @@ impl SMXHeader {
                 let mut decoder = ZlibDecoder::new(&data.get_ref().as_ref()[data_offset as usize..]);
 
                 decoder.read_to_end(&mut p_data)?;
+            }
+            _ => {
+                return Err(Error::Other("Unknown compression"))
             }
         }
 
