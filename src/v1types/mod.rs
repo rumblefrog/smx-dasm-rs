@@ -126,7 +126,7 @@ pub struct PublicEntry {
 impl PublicEntry {
     pub const SIZE: i32 = 8;
 
-    pub fn new<T>(data: T, section: SectionEntry, mut names: SMXNameTable) -> Result<Vec<Self>>
+    pub fn new<T>(data: T, section: &SectionEntry, names: &mut SMXNameTable) -> Result<Vec<Self>>
     where
         T: AsRef<[u8]>,
     {
@@ -155,6 +155,7 @@ impl PublicEntry {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct CalledFunctionEntry {
     pub address: u32,
 
@@ -174,7 +175,7 @@ pub struct NativeEntry {
 impl NativeEntry {
     pub const SIZE: i32 = 4;
 
-    pub fn new<T>(data: T, section: SectionEntry, mut names: SMXNameTable) -> Result<Vec<Self>>
+    pub fn new<T>(data: T, section: &SectionEntry, names: &mut SMXNameTable) -> Result<Vec<Self>>
     where
         T: AsRef<[u8]>,
     {
@@ -217,7 +218,7 @@ pub struct PubvarEntry {
 impl PubvarEntry {
     pub const SIZE: i32 = 8;
 
-    pub fn new<T>(data: T, section: SectionEntry, mut names: SMXNameTable) -> Result<Vec<Self>>
+    pub fn new<T>(data: T, section: &SectionEntry, names: &mut SMXNameTable) -> Result<Vec<Self>>
     where
         T: AsRef<[u8]>,
     {
@@ -277,7 +278,7 @@ impl TagEntry {
         Self::METHODMAP |
         Self::STRUCT);
 
-    pub fn new<T>(data: T, section: SectionEntry, mut names: SMXNameTable) -> Result<Vec<Self>>
+    pub fn new<T>(data: T, section: &SectionEntry, names: &mut SMXNameTable) -> Result<Vec<Self>>
     where
         T: AsRef<[u8]>,
     {
