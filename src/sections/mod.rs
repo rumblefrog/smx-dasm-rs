@@ -221,26 +221,14 @@ impl SMXPubvarTable {
     }
 }
 
-#[derive(Debug, Clone)]
-pub enum TagFlags {
-    Fixed,
-    Function,
-    Object,
-    Enum,
-    MethodMap,
-    Struct,
-}
-
-impl TagFlags {
-    pub fn value(&self) -> u32 {
-        match *self {
-            TagFlags::Fixed => 0x4000_0000,
-            TagFlags::Function => 0x2000_0000,
-            TagFlags::Object => 0x1000_0000,
-            TagFlags::Enum => 0x0800_0000,
-            TagFlags::MethodMap => 0x0400_0000,
-            TagFlags::Struct => 0x0200_0000,
-        }
+bitflags! {
+    pub struct TagFlags: u32 {
+        const FIXED = 0x4000_0000;
+        const FUNCTION = 0x2000_0000;
+        const OBJECT = 0x1000_0000;
+        const ENUM = 0x0800_0000;
+        const METHODMAP = 0x0400_0000;
+        const STRUCT = 0x0200_0000;
     }
 }
 

@@ -5,16 +5,9 @@ use crate::headers::{SectionEntry};
 use crate::sections::{SMXNameTable};
 use crate::errors::{Result, Error};
 
-#[derive(Debug, Clone)]
-pub enum CodeV1Flags {
-    Debug,
-}
-
-impl CodeV1Flags {
-    pub fn value(&self) -> u16 {
-        match *self {
-            CodeV1Flags::Debug => 0x0000_0001,
-        }
+bitflags! {
+    pub struct CodeV1Flags: u16 {
+        const DEBUG = 0x0000_0001;
     }
 }
 
@@ -31,7 +24,7 @@ pub struct CodeV1Header {
     pub code_version: u8,
 
     // Flags (see above).
-    pub flags: u16,
+    pub flags: CodeV1Flags,
 
     // Offset within the code blob to the entry point function.
     pub main_offset: i32,
@@ -66,7 +59,7 @@ impl CodeV1Header {
             code_size,
             cell_size,
             code_version,
-            flags,
+            flags: CodeV1Flags::from_bits_truncate(flags),
             main_offset,
             code_offset,
             features: {
@@ -271,12 +264,12 @@ impl TagEntry {
     pub const METHODMAP: u32 = 0x0400_0000;
     pub const STRUCT: u32 = 0x0200_0000;
     pub const FLAGMASK: u32 = 
-        (Self::FIXED |
+        Self::FIXED |
         Self:: FUNC |
         Self::OBJECT |
         Self::ENUM |
         Self::METHODMAP |
-        Self::STRUCT);
+        Self::STRUCT;
 
     pub fn new<T>(data: T, section: &SectionEntry, names: &mut SMXNameTable) -> Result<Vec<Self>>
     where
