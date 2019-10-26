@@ -132,9 +132,7 @@ impl<'a> SMXRTTIData<'a> {
                 (payload >> 24) as u8,
             ];
 
-            let vec = temp.to_vec();
-
-            let mut builder: TypeBuilder = TypeBuilder::new(&self.smx_file, &vec, 0);
+            let mut builder: TypeBuilder = TypeBuilder::new(&self.smx_file, &temp, 0);
 
             return builder.decode_new()
         }
@@ -180,13 +178,13 @@ impl<'a> SMXRTTIData<'a> {
 
 struct TypeBuilder<'a> {
     file: &'a SMXFile<'a>,
-    bytes: &'a Vec<u8>,
+    bytes: &'a [u8],
     offset: i32,
     is_const: bool,
 }
 
 impl<'a> TypeBuilder<'a> {
-    pub fn new(file: &'a SMXFile<'a>, bytes: &'a Vec<u8>, offset: i32) -> Self {
+    pub fn new(file: &'a SMXFile<'a>, bytes: &'a [u8], offset: i32) -> Self {
         Self {
             file,
             bytes,
