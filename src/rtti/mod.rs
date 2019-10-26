@@ -1,6 +1,6 @@
-use std::io::Cursor;
+use std::io::{Cursor, Seek, SeekFrom};
 use byteorder::{ReadBytesExt, LittleEndian};
-use crate::sections::BaseSection;
+use crate::sections::{BaseSection, SMXNameTable};
 use crate::headers::{SMXHeader, SectionEntry};
 use crate::errors::Result;
 
@@ -99,5 +99,439 @@ impl CB {
         }
 
         value as i32
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct SMXRTTIEnumTable {
+    enums: Vec<String>,
+}
+
+impl SMXRTTIEnumTable {
+    pub fn new(header: &SMXHeader, section: &SectionEntry, names: &mut SMXNameTable) -> Result<Self> {
+        let base = BaseSection::new(header, section);    
+        let mut rtti = SMXRTTIListTable::new(header, section);
+
+        let data = base.get_data();
+
+        rtti.init(&data)?;
+
+        let mut enums: Vec<String> = Vec::with_capacity(rtti.row_count() as usize);
+
+        let mut data = Cursor::new(data);
+
+        for _ in 0..rtti.row_count() {
+            let index = data.read_i32::<LittleEndian>()?;
+
+            enums.push(names.string_at(index)?);
+
+            // reserved0-2.
+            data.seek(SeekFrom::Current(3 * 4))?;
+        }
+
+        Ok(Self {
+            enums,
+        })
+    }
+
+    pub fn enums(&self) -> Vec<String> {
+        self.enums.clone()
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct RTTIMethod {
+    name: String,
+
+    pcode_start: i32,
+
+    pcode_end: i32,
+
+    signature: i32,
+}
+
+#[derive(Debug, Clone)]
+pub struct SMXRTTIMethodTable {
+    methods: Vec<RTTIMethod>,
+}
+
+impl SMXRTTIMethodTable {
+    pub fn new(header: &SMXHeader, section: &SectionEntry, names: &mut SMXNameTable) -> Result<Self> {
+        let base = BaseSection::new(header, section);    
+        let mut rtti = SMXRTTIListTable::new(header, section);
+
+        let data = base.get_data();
+
+        rtti.init(&data)?;
+
+        let mut methods: Vec<RTTIMethod> = Vec::with_capacity(rtti.row_count() as usize);
+
+        let mut data = Cursor::new(data);
+
+        for _ in 0..rtti.row_count() {
+            let index = data.read_i32::<LittleEndian>()?;
+
+            methods.push(RTTIMethod {
+                name: names.string_at(index)?,
+                pcode_start: data.read_i32::<LittleEndian>()?,
+                pcode_end: data.read_i32::<LittleEndian>()?,
+                signature: data.read_i32::<LittleEndian>()?,
+            });
+        }
+
+        Ok(Self {
+            methods,
+        })
+    }
+
+    pub fn methods(&self) -> Vec<RTTIMethod> {
+        self.methods.clone()
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct RTTINative {
+    name: String,
+
+    signature: i32,
+}
+
+#[derive(Debug, Clone)]
+pub struct SMXRTTINativeTable {
+    natives: Vec<RTTINative>,
+}
+
+impl SMXRTTINativeTable {
+    pub fn new(header: &SMXHeader, section: &SectionEntry, names: &mut SMXNameTable) -> Result<Self> {
+        let base = BaseSection::new(header, section);    
+        let mut rtti = SMXRTTIListTable::new(header, section);
+
+        let data = base.get_data();
+
+        rtti.init(&data)?;
+
+        let mut natives: Vec<RTTINative> = Vec::with_capacity(rtti.row_count() as usize);
+
+        let mut data = Cursor::new(data);
+
+        for _ in 0..rtti.row_count() {
+            let index = data.read_i32::<LittleEndian>()?;
+
+            natives.push(RTTINative {
+                name: names.string_at(index)?,
+                signature: data.read_i32::<LittleEndian>()?,
+            });
+        }
+
+        Ok(Self {
+            natives,
+        })
+    }
+
+    pub fn natives(&self) -> Vec<RTTINative> {
+        self.natives.clone()
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct RTTITypedef {
+    name: String,
+
+    type_id: i32,
+}
+
+#[derive(Debug, Clone)]
+pub struct SMXRTTITypedefTable {
+    typedefs: Vec<RTTITypedef>,
+}
+
+impl SMXRTTITypedefTable {
+    pub fn new(header: &SMXHeader, section: &SectionEntry, names: &mut SMXNameTable) -> Result<Self> {
+        let base = BaseSection::new(header, section);    
+        let mut rtti = SMXRTTIListTable::new(header, section);
+
+        let data = base.get_data();
+
+        rtti.init(&data)?;
+
+        let mut typedefs: Vec<RTTITypedef> = Vec::with_capacity(rtti.row_count() as usize);
+
+        let mut data = Cursor::new(data);
+
+        for _ in 0..rtti.row_count() {
+            let index = data.read_i32::<LittleEndian>()?;
+
+            typedefs.push(RTTITypedef {
+                name: names.string_at(index)?,
+                type_id: data.read_i32::<LittleEndian>()?,
+            });
+        }
+
+        Ok(Self {
+            typedefs,
+        })
+    }
+
+    pub fn typedefs(&self) -> Vec<RTTITypedef> {
+        self.typedefs.clone()
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct RTTITypeset {
+    name: String,
+
+    signature: i32,
+}
+
+#[derive(Debug, Clone)]
+pub struct SMXRTTITypesetTable {
+    typesets: Vec<RTTITypeset>,
+}
+
+impl SMXRTTITypesetTable {
+    pub fn new(header: &SMXHeader, section: &SectionEntry, names: &mut SMXNameTable) -> Result<Self> {
+        let base = BaseSection::new(header, section);    
+        let mut rtti = SMXRTTIListTable::new(header, section);
+
+        let data = base.get_data();
+
+        rtti.init(&data)?;
+
+        let mut typesets: Vec<RTTITypeset> = Vec::with_capacity(rtti.row_count() as usize);
+
+        let mut data = Cursor::new(data);
+
+        for _ in 0..rtti.row_count() {
+            let index = data.read_i32::<LittleEndian>()?;
+
+            typesets.push(RTTITypeset {
+                name: names.string_at(index)?,
+                signature: data.read_i32::<LittleEndian>()?,
+            });
+        }
+
+        Ok(Self {
+            typesets,
+        })
+    }
+
+    pub fn typesets(&self) -> Vec<RTTITypeset> {
+        self.typesets.clone()
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct RTTIEnumStruct {
+    name_offset: i32,
+
+    first_field: i32,
+
+    size: i32,
+
+    name: String,
+}
+
+#[derive(Debug, Clone)]
+pub struct SMXRTTIEnumStructTable {
+    entries: Vec<RTTIEnumStruct>,
+}
+
+impl SMXRTTIEnumStructTable {
+    pub fn new(header: &SMXHeader, section: &SectionEntry, names: &mut SMXNameTable) -> Result<Self> {
+        let base = BaseSection::new(header, section);    
+        let mut rtti = SMXRTTIListTable::new(header, section);
+
+        let data = base.get_data();
+
+        rtti.init(&data)?;
+
+        let mut entries: Vec<RTTIEnumStruct> = Vec::with_capacity(rtti.row_count() as usize);
+
+        let mut data = Cursor::new(data);
+
+        for _ in 0..rtti.row_count() {
+            let name_offset = data.read_i32::<LittleEndian>()?;
+            let first_field = data.read_i32::<LittleEndian>()?;
+            let size = data.read_i32::<LittleEndian>()?;
+            let name = names.string_at(name_offset)?;
+
+            entries.push(RTTIEnumStruct {
+                name_offset,
+                first_field,
+                size,
+                name,
+            })
+        }
+
+        Ok(Self {
+            entries,
+        })
+    }
+
+    pub fn entries(&self) -> Vec<RTTIEnumStruct> {
+        self.entries.clone()
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct RTTIEnumStructField {
+    name_offset: i32,
+
+    type_id: i32,
+
+    offset: i32,
+
+    name: String,
+}
+
+#[derive(Debug, Clone)]
+pub struct SMXRTTIEnumStructFieldTable {
+    entries: Vec<RTTIEnumStructField>,
+}
+
+impl SMXRTTIEnumStructFieldTable {
+    pub fn new(header: &SMXHeader, section: &SectionEntry, names: &mut SMXNameTable) -> Result<Self> {
+        let base = BaseSection::new(header, section);    
+        let mut rtti = SMXRTTIListTable::new(header, section);
+
+        let data = base.get_data();
+
+        rtti.init(&data)?;
+
+        let mut entries: Vec<RTTIEnumStructField> = Vec::with_capacity(rtti.row_count() as usize);
+
+        let mut data = Cursor::new(data);
+
+        for _ in 0..rtti.row_count() {
+            let name_offset = data.read_i32::<LittleEndian>()?;
+            let type_id = data.read_i32::<LittleEndian>()?;
+            let offset = data.read_i32::<LittleEndian>()?;
+            let name = names.string_at(name_offset)?;
+
+            entries.push(RTTIEnumStructField {
+                name_offset,
+                type_id,
+                offset,
+                name,
+            })
+        }
+
+        Ok(Self {
+            entries,
+        })
+    }
+
+    pub fn entries(&self) -> Vec<RTTIEnumStructField> {
+        self.entries.clone()
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct RTTIClassDef {
+    flags: i32,
+
+    name_offset: i32,
+
+    first_field: i32,
+
+    name: String,
+}
+
+#[derive(Debug, Clone)]
+pub struct SMXRTTIClassDefTable {
+    defs: Vec<RTTIClassDef>,
+}
+
+impl SMXRTTIClassDefTable {
+    pub fn new(header: &SMXHeader, section: &SectionEntry, names: &mut SMXNameTable) -> Result<Self> {
+        let base = BaseSection::new(header, section);    
+        let mut rtti = SMXRTTIListTable::new(header, section);
+
+        let data = base.get_data();
+
+        rtti.init(&data)?;
+
+        let mut defs: Vec<RTTIClassDef> = Vec::with_capacity(rtti.row_count() as usize);
+
+        let mut data = Cursor::new(data);
+
+        for _ in 0..rtti.row_count() {
+            let flags = data.read_i32::<LittleEndian>()?;
+            let name_offset = data.read_i32::<LittleEndian>()?;
+            let first_field = data.read_i32::<LittleEndian>()?;
+            let name = names.string_at(name_offset)?;
+
+            defs.push(RTTIClassDef {
+                flags,
+                name_offset,
+                first_field,
+                name,
+            });
+
+            // reserved0-3
+            data.seek(SeekFrom::Current(4 * 4))?;
+        }
+
+        Ok(Self {
+            defs,
+        })
+    }
+
+    pub fn defs(&self) -> Vec<RTTIClassDef> {
+        self.defs.clone()
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct RTTIField {
+    flags: i32,
+
+    name_offset: i32,
+
+    type_id: i32,
+
+    name: String,
+}
+
+#[derive(Debug, Clone)]
+pub struct SMXRTTIFieldTable {
+    fields: Vec<RTTIField>,
+}
+
+impl SMXRTTIFieldTable {
+    pub fn new(header: &SMXHeader, section: &SectionEntry, names: &mut SMXNameTable) -> Result<Self> {
+        let base = BaseSection::new(header, section);    
+        let mut rtti = SMXRTTIListTable::new(header, section);
+
+        let data = base.get_data();
+
+        rtti.init(&data)?;
+
+        let mut fields: Vec<RTTIField> = Vec::with_capacity(rtti.row_count() as usize);
+
+        let mut data = Cursor::new(data);
+
+        for _ in 0..rtti.row_count() {
+            let flags = data.read_i32::<LittleEndian>()?;
+            let name_offset = data.read_i32::<LittleEndian>()?;
+            let type_id = data.read_i32::<LittleEndian>()?;
+            let name = names.string_at(name_offset)?;
+
+            fields.push(RTTIField {
+                flags,
+                name_offset,
+                type_id,
+                name,
+            });
+        }
+
+        Ok(Self {
+            fields,
+        })
+    }
+
+    pub fn fields(&self) -> Vec<RTTIField> {
+        self.fields.clone()
     }
 }
