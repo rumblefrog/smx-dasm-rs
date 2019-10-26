@@ -22,7 +22,7 @@ pub struct SMXFile<'a> {
     pub debug_lines: SMXDebugLinesTable,
     pub debug_symbols: SMXDebugSymbols,
 
-    // pub rtti_data: SMXRTTIData<'a>,
+    pub rtti_data: SMXRTTIData<'a>,
     pub rtti_enums: SMXRTTIEnumTable,
     pub rtti_enum_structs: SMXRTTIEnumStructTable,
     pub rtti_enum_struct_fields: SMXRTTIEnumStructFieldTable,

@@ -103,16 +103,15 @@ impl CB {
     }
 }
 
-// TODO: Fix circular reference
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct SMXRTTIData<'a> {
-    smx_file: SMXFile<'a>,
+    smx_file: &'a SMXFile<'a>,
 
     bytes: Vec<u8>,
 }
 
 impl<'a> SMXRTTIData<'a> {
-    pub fn new(file: SMXFile<'a>, header: &SMXHeader, section: &SectionEntry) -> Self {
+    pub fn new(file: &'a SMXFile<'a>, header: &SMXHeader, section: &SectionEntry) -> Self {
         let base = BaseSection::new(header, section);
         
         Self {
