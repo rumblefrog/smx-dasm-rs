@@ -2,6 +2,7 @@ use std::io::{Cursor, Seek, SeekFrom};
 use byteorder::{ReadBytesExt, LittleEndian};
 use crate::sections::{BaseSection, SMXNameTable};
 use crate::headers::{SMXHeader, SectionEntry};
+use crate::file::SMXFile;
 use crate::errors::Result;
 
 #[derive(Debug, Clone)]
@@ -99,6 +100,223 @@ impl CB {
         }
 
         value as i32
+    }
+}
+
+#[derive(Debug)]
+pub struct SMXRTTIData<'a> {
+    smx_file: SMXFile<'a>,
+
+    bytes: Vec<u8>,
+}
+
+impl<'a> SMXRTTIData<'a> {
+    pub fn new(file: SMXFile<'a>, header: &SMXHeader, section: &SectionEntry) -> Self {
+        let base = BaseSection::new(header, section);
+        
+        Self {
+            smx_file: file,
+            bytes: base.get_data(),
+        }
+    }
+
+    pub fn type_from_id(&self, type_id: i32) -> String {
+        let kind: i32 = type_id & 0xf;
+        let mut payload: i32 = (type_id >> 4) & 0xfffffff;
+
+        if kind == CB::TYPEID_INLINE as i32 {
+            let temp: [u8; 4] = [
+                (payload & 0xff) as u8,
+                (payload >> 8) as u8 & 0xff,
+                (payload >> 16) as u8 & 0xff,
+                (payload >> 24) as u8 & 0xff,
+            ];
+
+            let vec = temp.to_vec();
+
+            let mut builder: TypeBuilder = TypeBuilder::new(&self.smx_file, &vec, 0);
+
+            return builder.decode_new()
+        }
+
+        //TODO: Consider convert to Result<String>
+        if kind != CB::TYPEID_COMPLEX as i32 {
+            return format!("Unknown type_id kind: {}", kind);
+        }
+
+        self.build_type_name(&mut payload)
+    }
+
+    pub fn function_type_from_offset(&self, offset: i32) -> String {
+        let mut builder: TypeBuilder = TypeBuilder::new(&self.smx_file, &self.bytes, offset);
+
+        builder.decode_function()
+    }
+
+    pub fn typeset_types_from_offset(&self, offset: i32) -> Vec<String> {
+        let count: i32 = CB::decode_u32(&self.bytes, &mut offset.clone());
+
+        let mut types: Vec<String> = Vec::with_capacity(count as usize);
+
+        let mut builder: TypeBuilder = TypeBuilder::new(&self.smx_file, &self.bytes, offset);
+
+        for _ in 0..count {
+            types.push(builder.decode_new())
+        }
+
+        types
+    }
+
+    fn build_type_name(&self, offset: &mut i32) -> String {
+        let mut builder: TypeBuilder = TypeBuilder::new(&self.smx_file, &self.bytes, *offset);
+
+        let text: String = builder.decode_new();
+
+        *offset = builder.offset;
+
+        text
+    }
+}
+
+struct TypeBuilder<'a> {
+    file: &'a SMXFile<'a>,
+    bytes: &'a Vec<u8>,
+    offset: i32,
+    is_const: bool,
+}
+
+impl<'a> TypeBuilder<'a> {
+    pub fn new(file: &'a SMXFile<'a>, bytes: &'a Vec<u8>, offset: i32) -> Self {
+        Self {
+            file,
+            bytes,
+            offset,
+            is_const: false,
+        }
+    }
+
+    // Decode a type, but reset the |is_const| indicator for non-
+    // dependent type.
+    pub fn decode_new(&mut self) -> String {
+        let was_const: bool = self.is_const;
+        self.is_const = false;
+
+        let mut result: String = self.decode();
+
+        if self.is_const {
+            result = format!("const {}", result);
+        }
+
+        self.is_const = was_const;
+
+        result
+    }
+
+    pub fn decode(&mut self) -> String {
+        self.is_const |= self.r#match(CB::CONST);
+        let b: u8 = self.bytes[self.offset as usize];
+        self.offset += 1;
+
+        match b {
+            CB::BOOL => "bool".into(),
+            CB::INT32 => "int".into(),
+            CB::FLOAT32 => "float".into(),
+            CB::CHAR8 => "char".into(),
+            CB::ANY => "any".into(),
+            CB::TOPFUNCTION => "Function".into(),
+            CB::FIXEDARRAY => {
+                let index = CB::decode_u32(&self.bytes, &mut self.offset);
+                let inner: String = self.decode();
+
+                format!("{}[{}]", inner, index)
+            },
+            CB::ARRAY => {
+                let inner: String = self.decode();
+                
+                format!("{}[]", inner)
+            },
+            CB::ENUM => {
+                let index = CB::decode_u32(&self.bytes, &mut self.offset);
+
+                self.file.rtti_enums.enums()[index as usize].clone()
+            },
+            CB::TYPEDEF => {
+                let index = CB::decode_u32(&self.bytes, &mut self.offset);
+
+                self.file.rtti_typedefs.typedefs()[index as usize].name.clone()
+            }
+            CB::TYPESET => {
+                let index = CB::decode_u32(&self.bytes, &mut self.offset);
+
+                self.file.rtti_typesets.typesets()[index as usize].name.clone()
+            },
+            CB::STRUCT => {
+                let index = CB::decode_u32(&self.bytes, &mut self.offset);
+
+                self.file.rtti_classdefs.defs()[index as usize].name.clone()
+            },
+            CB::FUNCTION => self.decode_function(),
+            CB::ENUMSTRUCT => {
+                let index = CB::decode_u32(&self.bytes, &mut self.offset);
+
+                self.file.rtti_enum_structs.entries()[index as usize].name.clone()
+            },
+            _ => format!("unknown type code: {}", b),
+        }
+    }
+
+    pub fn decode_function(&mut self) -> String {
+        let argc: u32 = self.bytes[self.offset as usize] as u32;
+        self.offset += 1;
+
+        let mut variadic: bool = false;
+
+        if self.bytes[self.offset as usize] == CB::VARIADIC {
+            variadic = true;
+            self.offset += 1;
+        }
+
+        let return_type: String;
+
+        if self.bytes[self.offset as usize] == CB::VOID {
+            return_type = "void".into();
+            self.offset += 1;
+        } else {
+            return_type = self.decode_new();
+        }
+
+        let mut argv: Vec<String> = Vec::with_capacity(argc as usize);
+
+        for _ in 0..argc {
+            let is_byref: bool = self.r#match(CB::BYREF);
+            let mut text: String = self.decode_new();
+
+            if is_byref {
+                text += "&";
+            }
+
+            argv.push(text);
+        }
+
+        let mut signature: String = format!("function {} ({}", return_type, argv.join(", "));
+
+        if variadic {
+            signature += "...";
+        }
+
+        signature += ")";
+
+        signature
+    }
+
+    fn r#match(&mut self, b: u8) -> bool {
+        if self.bytes[self.offset as usize] != b {
+            return false
+        }
+
+        self.offset += 1;
+
+        true
     }
 }
 
