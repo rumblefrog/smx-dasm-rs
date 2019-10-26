@@ -103,6 +103,7 @@ impl CB {
     }
 }
 
+// TODO: Fix circular reference
 #[derive(Debug)]
 pub struct SMXRTTIData<'a> {
     smx_file: SMXFile<'a>,
