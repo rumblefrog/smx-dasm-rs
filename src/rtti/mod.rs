@@ -122,7 +122,7 @@ impl<'a> SMXRTTIData<'a> {
 
     pub fn type_from_id(&self, type_id: i32) -> String {
         let kind: i32 = type_id & 0xf;
-        let mut payload: i32 = (type_id >> 4) & 0xfffffff;
+        let mut payload: i32 = (type_id >> 4) & 0x0fff_ffff;
 
         if kind == CB::TYPEID_INLINE as i32 {
             let temp: [u8; 4] = [
