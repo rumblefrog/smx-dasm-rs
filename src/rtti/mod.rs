@@ -127,9 +127,9 @@ impl<'a> SMXRTTIData<'a> {
         if kind == CB::TYPEID_INLINE as i32 {
             let temp: [u8; 4] = [
                 (payload & 0xff) as u8,
-                (payload >> 8) as u8 & 0xff,
-                (payload >> 16) as u8 & 0xff,
-                (payload >> 24) as u8 & 0xff,
+                (payload >> 8) as u8,
+                (payload >> 16) as u8,
+                (payload >> 24) as u8,
             ];
 
             let vec = temp.to_vec();
