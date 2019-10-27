@@ -236,28 +236,28 @@ impl<'a> TypeBuilder<'a> {
             CB::ENUM => {
                 let index = CB::decode_u32(&self.bytes, &mut self.offset);
 
-                self.file.rtti_enums.enums()[index as usize].clone()
+                self.file.rtti_enums.as_ref().unwrap().enums()[index as usize].clone()
             },
             CB::TYPEDEF => {
                 let index = CB::decode_u32(&self.bytes, &mut self.offset);
 
-                self.file.rtti_typedefs.typedefs()[index as usize].name.clone()
+                self.file.rtti_typedefs.as_ref().unwrap().typedefs()[index as usize].name.clone()
             }
             CB::TYPESET => {
                 let index = CB::decode_u32(&self.bytes, &mut self.offset);
 
-                self.file.rtti_typesets.typesets()[index as usize].name.clone()
+                self.file.rtti_typesets.as_ref().unwrap().typesets()[index as usize].name.clone()
             },
             CB::STRUCT => {
                 let index = CB::decode_u32(&self.bytes, &mut self.offset);
 
-                self.file.rtti_classdefs.defs()[index as usize].name.clone()
+                self.file.rtti_classdefs.as_ref().unwrap().defs()[index as usize].name.clone()
             },
             CB::FUNCTION => self.decode_function(),
             CB::ENUMSTRUCT => {
                 let index = CB::decode_u32(&self.bytes, &mut self.offset);
 
-                self.file.rtti_enum_structs.entries()[index as usize].name.clone()
+                self.file.rtti_enum_structs.as_ref().unwrap().entries()[index as usize].name.clone()
             },
             _ => format!("unknown type code: {}", b),
         }
@@ -357,13 +357,13 @@ impl SMXRTTIEnumTable {
 
 #[derive(Debug, Clone)]
 pub struct RTTIMethod {
-    name: String,
+    pub name: String,
 
-    pcode_start: i32,
+    pub pcode_start: i32,
 
-    pcode_end: i32,
+    pub pcode_end: i32,
 
-    signature: i32,
+    pub signature: i32,
 }
 
 #[derive(Debug, Clone)]
@@ -402,6 +402,10 @@ impl SMXRTTIMethodTable {
 
     pub fn methods(&self) -> Vec<RTTIMethod> {
         self.methods.clone()
+    }
+
+    pub fn methods_ref(&self) -> &Vec<RTTIMethod> {
+        self.methods.as_ref()
     }
 }
 

@@ -1,7 +1,8 @@
 use std::collections::HashMap;
 use crate::headers::{SMXHeader, SectionEntry};
 use crate::v1types::*;
-use crate::rtti::SMXRTTIListTable;
+use crate::rtti::{SMXRTTIListTable, RTTIMethod};
+use crate::file::SMXFile;
 use crate::errors::{Result, Error};
 
 #[derive(Debug, Clone)]
@@ -147,6 +148,10 @@ impl SMXPublicTable {
         self.publics.clone()
     }
 
+    pub fn entries_ref(&self) -> &Vec<PublicEntry> {
+        self.publics.as_ref()
+    }
+
     // Return immutable cloned copy at index
     pub fn get_entry(&self, index: usize) -> PublicEntry {
         self.publics[index].clone()
@@ -162,7 +167,7 @@ pub struct SMXCalledFunctionsTable {
     functions: Vec<CalledFunctionEntry>,
 }
 
-impl SMXCalledFunctionsTable {
+impl SMXCalledFunctionsTable{
     pub fn new() -> Self {
         Self {
             functions: Vec::new(),
@@ -179,6 +184,10 @@ impl SMXCalledFunctionsTable {
     // Return a copy of the publics vector
     pub fn entries(&self) -> Vec<CalledFunctionEntry> {
         self.functions.clone()
+    }
+
+    pub fn entries_ref(&self) -> &Vec<CalledFunctionEntry> {
+        self.functions.as_ref()
     }
 
     // Return immutable cloned copy at index
@@ -563,7 +572,16 @@ impl SMXDebugMethods {
             entries,
         })
     }
+
+    pub fn entries_ref(&self) -> &Vec<DebugMethodEntry> {
+        self.entries.as_ref()
+    }
+
+    pub fn len(&self) -> usize {
+        self.entries.len()
+    }
 }
+
 
 #[derive(Debug, Clone)]
 pub struct SMXDebugSymbols {
@@ -605,6 +623,18 @@ impl SMXDebugSymbols {
         self.entries.clone()
     }
 
+    pub fn entries_ref(&self) -> &Vec<DebugVarEntry> {
+        self.entries.as_ref()
+    }
+
+    pub fn entries_len(&self) -> usize {
+        self.entries.len()
+    }
+
+    pub fn is_entry_empty(&self) -> bool {
+        self.entries.is_empty()
+    }
+
     pub fn address_sorted(&self) -> Vec<DebugVarEntry> {
         self.address_sorted.clone()
     }
@@ -644,6 +674,72 @@ impl SMXDebugGlobals {
 
             if addr > sym.address && addr < next_sym.address {
                 return Some(sym.clone())
+            }
+        }
+
+        None
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct SMXDebugLocals<'a> {
+    file: &'a SMXFile<'a>,
+    debug_symbols: SMXDebugSymbols,
+}
+
+impl<'a> SMXDebugLocals<'a> {
+    pub fn new(file: &'a SMXFile<'a>, header: &SMXHeader, section: &SectionEntry) -> Result<Self> {
+        Ok(Self {
+            file,
+            debug_symbols: SMXDebugSymbols::new(header, section)?,
+        })
+    }
+
+    pub fn find_local(&self, code_addr: i32, addr: i32) -> Option<DebugVarEntry> {
+        let mut start_at: i32 = 0;
+        let mut stop_at: i32 = self.debug_symbols.entries_len() as i32;
+
+        if self.file.debug_methods.is_some() && self.file.rtti_methods.is_some() {
+            let mut index: Option<usize> = None;
+
+            for i in 0..self.file.debug_methods.as_ref().unwrap().len() {
+                let method_index: i32 = self.file.debug_methods.as_ref().unwrap().entries_ref()[i as usize].method_index;
+                let method: &RTTIMethod = &self.file.rtti_methods.as_ref().unwrap().methods_ref()[method_index as usize];
+
+                if code_addr > method.pcode_start && code_addr < method.pcode_end {
+                    index = Some(i as usize);
+                    break;
+                }
+            }
+
+            if let Some(i) = index {
+                start_at = self.file.debug_methods.as_ref().unwrap().entries_ref()[i].first_local;
+
+                if i != self.file.debug_methods.as_ref().unwrap().len() - 1 {
+                    stop_at = self.file.debug_methods.as_ref().unwrap().entries_ref()[i + 1].first_local;
+                }
+            }
+        }
+
+        for i in start_at..stop_at {
+            let sym: DebugVarEntry = self.debug_symbols.entries_ref()[i as usize].clone();
+
+            if code_addr < sym.code_start || code_addr >= sym.code_end {
+                continue;
+            }
+
+            if sym.address == addr {
+                return Some(sym);
+            }
+
+            if i == stop_at - 1 {
+                break;
+            }
+
+            let next_sym: DebugVarEntry = self.debug_symbols.entries_ref()[(i + 1) as usize].clone();
+
+            if addr > sym.address && addr < next_sym.address {
+                return Some(sym);
             }
         }
 

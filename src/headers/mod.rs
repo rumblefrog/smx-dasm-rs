@@ -11,6 +11,10 @@ pub enum CompressionType {
     CompressionUnknown,
 }
 
+impl Default for CompressionType {
+    fn default() -> Self { CompressionType::CompressionGZ }
+}
+
 impl From<u8> for CompressionType {
     fn from(byte: u8) -> Self {
         match byte {
@@ -31,7 +35,7 @@ impl fmt::Display for CompressionType {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub struct SMXHeader {
     pub magic: u32,
 
