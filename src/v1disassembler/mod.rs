@@ -1,3 +1,5 @@
+use std::rc::Rc;
+use std::cell::RefCell;
 use std::io::{Cursor, Seek, SeekFrom};
 use byteorder::{ReadBytesExt, LittleEndian};
 use std::convert::TryFrom;
@@ -31,7 +33,7 @@ pub struct V1Instruction {
 }
 
 lazy_static! {
-    static ref opcode_list: Vec<V1OPCodeInfo> = {
+    static ref OPCODE_LIST: Vec<V1OPCodeInfo> = {
         let mut m = Vec::with_capacity(V1OPCode::TOTAL_OPCODES as usize);
 
         let mut prep = |op: V1OPCode, params: &'static [V1Param]| {
@@ -179,24 +181,22 @@ lazy_static! {
     };
 }
 
-static mut populated: bool = false;
-
-pub struct V1Disassembler<'a> {
-    file: &'a SMXFile<'a>,
+pub struct V1Disassembler {
+    file: Rc<RefCell<SMXFile>>,
     data: Vec<u8>,
     code_start: i32,
-    proc_offset: i32,
+    _proc_offset: i32,
     cursor: i32,
     cursor_limit: i32,
 }
 
-impl<'a> V1Disassembler<'a> {
-    pub fn new(file: &'a SMXFile<'a>, code: &'a  SMXCodeV1Section, proc_offset: i32) -> Self {
+impl V1Disassembler {
+    pub fn new(file: Rc<RefCell<SMXFile>>, code: Rc<SMXCodeV1Section>, proc_offset: i32) -> Self {
         Self {
-            file,
-            data: file.header.data.clone(),
+            file: Rc::clone(&file),
+            data: file.borrow().header.data.clone(),
             code_start: code.code_start(),
-            proc_offset,
+            _proc_offset: proc_offset,
             cursor: proc_offset,
             cursor_limit: code.header().code_size,
         }
@@ -205,7 +205,7 @@ impl<'a> V1Disassembler<'a> {
     fn read_at(&self, offset: i32) -> Result<i32> {
         let mut cursor = Cursor::new(&self.data);
 
-        cursor.seek(SeekFrom::Start((self.code_start + offset) as u64));
+        cursor.seek(SeekFrom::Start((self.code_start + offset) as u64))?;
 
         Ok(cursor.read_i32::<LittleEndian>()?)
     }
@@ -238,7 +238,7 @@ impl<'a> V1Disassembler<'a> {
 
             let mut insn: V1Instruction = V1Instruction {
                 address,
-                info: opcode_list[op as usize].clone(),
+                info: OPCODE_LIST[op as usize].clone(),
                 params: Vec::new(),
             };
 
@@ -269,8 +269,8 @@ impl<'a> V1Disassembler<'a> {
             if op == V1OPCode::CALL as i32 {
                 let addr: i32 = insn.params[0];
 
-                if !self.file.is_function_at_address(addr) {
-                    self.file.called_functions.as_mut().unwrap().add_function(addr as u32);
+                if !self.file.borrow_mut().is_function_at_address(addr) {
+                    self.file.borrow_mut().called_functions.as_mut().unwrap().borrow_mut().add_function(addr as u32);
                 }
             }
 
@@ -280,7 +280,7 @@ impl<'a> V1Disassembler<'a> {
         Ok(insns)
     }
 
-    pub fn diassemble(file: &'a SMXFile<'a>, code: &'a SMXCodeV1Section, proc_offset: i32) -> Result<Vec<V1Instruction>> {
+    pub fn diassemble(file: Rc<RefCell<SMXFile>>, code: Rc<SMXCodeV1Section>, proc_offset: i32) -> Result<Vec<V1Instruction>> {
         let mut disassembler: V1Disassembler = V1Disassembler::new(file, code, proc_offset);
 
         disassembler.diassemble_internal()
