@@ -1,3 +1,5 @@
+use std::rc::Rc;
+use std::cell::RefCell;
 use std::fmt;
 use std::io::{Cursor};
 use byteorder::{ReadBytesExt, LittleEndian};
@@ -119,7 +121,7 @@ pub struct PublicEntry {
 impl PublicEntry {
     pub const SIZE: i32 = 8;
 
-    pub fn new<T>(data: T, section: &SectionEntry, names: &mut SMXNameTable) -> Result<Vec<Self>>
+    pub fn new<T>(data: T, section: Rc<SectionEntry>, names: Rc<RefCell<SMXNameTable>>) -> Result<Vec<Self>>
     where
         T: AsRef<[u8]>,
     {
@@ -140,7 +142,7 @@ impl PublicEntry {
             entries.push(Self {
                 address,
                 name_offset,
-                name: names.string_at(name_offset)?,
+                name: names.borrow_mut().string_at(name_offset)?,
             })
         }
 
@@ -168,11 +170,11 @@ pub struct NativeEntry {
 impl NativeEntry {
     pub const SIZE: i32 = 4;
 
-    pub fn new<T>(data: T, section: &SectionEntry, names: &mut SMXNameTable) -> Result<Vec<Self>>
+    pub fn new<T>(data: T, section: Rc<SectionEntry>, names: Rc<RefCell<SMXNameTable>>) -> Result<Vec<Self>>
     where
         T: AsRef<[u8]>,
     {
-        if section.size & Self::SIZE != 0 {
+        if section.size % Self::SIZE != 0 {
             return Err(Error::InvalidSize)
         }
 
@@ -187,7 +189,7 @@ impl NativeEntry {
 
             entries.push(Self {
                 name_offset,
-                name: names.string_at(name_offset)?,
+                name: names.borrow_mut().string_at(name_offset)?,
             })
         }
 
@@ -211,11 +213,11 @@ pub struct PubvarEntry {
 impl PubvarEntry {
     pub const SIZE: i32 = 8;
 
-    pub fn new<T>(data: T, section: &SectionEntry, names: &mut SMXNameTable) -> Result<Vec<Self>>
+    pub fn new<T>(data: T, section: Rc<SectionEntry>, names: Rc<RefCell<SMXNameTable>>) -> Result<Vec<Self>>
     where
         T: AsRef<[u8]>,
     {
-        if section.size & Self::SIZE != 0 {
+        if section.size % Self::SIZE != 0 {
             return Err(Error::InvalidSize)
         }
 
@@ -232,7 +234,7 @@ impl PubvarEntry {
             entries.push(Self {
                 address,
                 name_offset,
-                name: names.string_at(name_offset)?,
+                name: names.borrow_mut().string_at(name_offset)?,
             })
         }
 
@@ -271,11 +273,11 @@ impl TagEntry {
         Self::METHODMAP |
         Self::STRUCT;
 
-    pub fn new<T>(data: T, section: &SectionEntry, names: &mut SMXNameTable) -> Result<Vec<Self>>
+    pub fn new<T>(data: T, section: Rc<SectionEntry>, names: Rc<RefCell<SMXNameTable>>) -> Result<Vec<Self>>
     where
         T: AsRef<[u8]>,
     {
-        if section.size & NativeEntry::SIZE != 0 {
+        if section.size % NativeEntry::SIZE != 0 {
             return Err(Error::InvalidSize)
         }
 
@@ -292,7 +294,7 @@ impl TagEntry {
             entries.push(Self {
                 tag,
                 name_offset,
-                name: names.string_at(name_offset)?,
+                name: names.borrow_mut().string_at(name_offset)?,
             })
         }
 
@@ -344,11 +346,11 @@ pub struct DebugFileEntry {
 impl DebugFileEntry {
     pub const SIZE: i32 = 8;
 
-    pub fn new<T>(data: T, section: &SectionEntry, names: &mut SMXNameTable) -> Result<Vec<Self>>
+    pub fn new<T>(data: T, section: Rc<SectionEntry>, names: Rc<RefCell<SMXNameTable>>) -> Result<Vec<Self>>
     where
         T: AsRef<[u8]>,
     {
-        if section.size & Self::SIZE != 0 {
+        if section.size % Self::SIZE != 0 {
             return Err(Error::InvalidSize)
         }
 
@@ -365,7 +367,7 @@ impl DebugFileEntry {
             entries.push(Self {
                 address,
                 name_offset,
-                name: names.string_at(name_offset)?,
+                name: names.borrow_mut().string_at(name_offset)?,
             })
         }
 
@@ -386,11 +388,11 @@ pub struct DebugLineEntry {
 impl DebugLineEntry {
     pub const SIZE: i32 = 8;
 
-    pub fn new<T>(data: T, section: &SectionEntry) -> Result<Vec<Self>>
+    pub fn new<T>(data: T, section: Rc<SectionEntry>) -> Result<Vec<Self>>
     where
         T: AsRef<[u8]>,
     {
-        if section.size & Self::SIZE != 0 {
+        if section.size % Self::SIZE != 0 {
             return Err(Error::InvalidSize)
         }
 
@@ -456,12 +458,7 @@ pub struct DebugMethodEntry {
 }
 
 impl DebugMethodEntry {
-    pub fn new<T>(data: T) -> Result<Self>
-    where
-        T: AsRef<[u8]>,
-    {
-        let mut cursor = Cursor::new(data);
-
+    pub fn new(cursor: &mut Cursor<Vec<u8>>) -> Result<Self> {
         Ok(Self {
             method_index: cursor.read_i32::<LittleEndian>()?,
             first_local: cursor.read_i32::<LittleEndian>()?,
@@ -486,15 +483,11 @@ pub struct DebugVarEntry {
 }
 
 impl DebugVarEntry {
-    pub fn new<T>(data: T) -> Result<Self>
-    where
-        T: AsRef<[u8]>,
+    pub fn new(cursor: &mut Cursor<Vec<u8>>) -> Result<Self>
     {
-        let mut cursor = Cursor::new(data);
-
         Ok(Self {
             address: cursor.read_i32::<LittleEndian>()?,
-            scope: SymbolScope::from(cursor.read_u8()?),
+            scope: SymbolScope::from(cursor.read_u8()? & 3),
             name_offset: cursor.read_i32::<LittleEndian>()?,
             code_start: cursor.read_i32::<LittleEndian>()?,
             code_end: cursor.read_i32::<LittleEndian>()?,

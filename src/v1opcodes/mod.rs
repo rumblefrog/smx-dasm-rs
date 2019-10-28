@@ -1,5 +1,11 @@
+use std::fmt::{Display, Formatter, Result};
+use num_enum::TryFromPrimitive;
+
 #[allow(non_camel_case_types)]
+#[derive(Debug, Clone, PartialEq, TryFromPrimitive)]
+#[repr(u8)]
 pub enum V1OPCode {
+    NONE,
     LOAD_PRI, 
     LOAD_ALT, 
     LOAD_S_PRI,
@@ -187,4 +193,14 @@ pub enum V1OPCode {
     FLOAT_EQ, 
     FLOAT_NOT,
     TOTAL_OPCODES
+}
+
+impl Default for V1OPCode {
+    fn default() -> Self { V1OPCode::TOTAL_OPCODES }
+}
+
+impl Display for V1OPCode {
+    fn fmt(&self, f: &mut Formatter) -> Result {
+        write!(f, "{:?}", self)
+    }
 }

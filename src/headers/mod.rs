@@ -1,3 +1,4 @@
+use std::rc::Rc;
 use std::io::{Read, Seek, SeekFrom, Cursor};
 use byteorder::{ReadBytesExt, LittleEndian};
 use flate2::read::ZlibDecoder;
@@ -9,6 +10,10 @@ pub enum CompressionType {
     CompressionNone,
     CompressionGZ,
     CompressionUnknown,
+}
+
+impl Default for CompressionType {
+    fn default() -> Self { CompressionType::CompressionGZ }
 }
 
 impl From<u8> for CompressionType {
@@ -31,7 +36,7 @@ impl fmt::Display for CompressionType {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub struct SMXHeader {
     pub magic: u32,
 
@@ -80,7 +85,7 @@ pub struct SMXHeader {
     // The computed data buffer (which contains the header).
     pub data: Vec<u8>,
 
-    pub sections: Vec<SectionEntry>,
+    pub sections: Vec<Rc<SectionEntry>>,
 
     pub debug_packed: bool,
 }
@@ -195,14 +200,14 @@ impl SMXHeader {
 
         new_data.seek(SeekFrom::Start(SMXHeader::HEADER_SIZE as u64))?;
 
-        let mut sections: Vec<SectionEntry> = Vec::with_capacity(section_count as usize);
+        let mut sections: Vec<Rc<SectionEntry>> = Vec::with_capacity(section_count as usize);
 
         let mut found_dbg_section: bool = false;
 
         for _ in 0..section_count {
             let name_offset: i32;
 
-            sections.push(SectionEntry{
+            sections.push(Rc::new(SectionEntry{
                 name_offset: {
                     name_offset = new_data.read_i32::<LittleEndian>()?;
 
@@ -241,7 +246,7 @@ impl SMXHeader {
 
                     name
                 }
-            })
+            }))
         }
 
         Ok(SMXHeader{
