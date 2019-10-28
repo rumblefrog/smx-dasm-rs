@@ -6,7 +6,7 @@ use crate::rtti::*;
 use crate::v1disassembler::V1Disassembler;
 use crate::errors::Result;
 
-#[derive(Debug, Default)]
+#[derive(Default)]
 pub struct SMXFile {
     pub header: Rc<SMXHeader>,
     pub unknown_sections: Vec<Rc<SectionEntry>>,
@@ -49,66 +49,68 @@ impl SMXFile {
         let file: Rc<RefCell<SMXFile>> = Rc::new(RefCell::new(Default::default()));
 
         {
-            let file_mut = &mut *file.borrow_mut();
+            {
+                let file_mut = &mut *file.borrow_mut();
 
-            file_mut.header = Rc::new(SMXHeader::new(&data)?);
-            file_mut.unknown_sections = Vec::new();
-            file_mut.called_functions = Some(Rc::new(RefCell::new(SMXCalledFunctionsTable::new())));
+                file_mut.header = Rc::new(SMXHeader::new(&data)?);
+                file_mut.unknown_sections = Vec::new();
+                file_mut.called_functions = Some(Rc::new(RefCell::new(SMXCalledFunctionsTable::new())));
 
-            for section in &file_mut.header.sections {
-                match section.name.as_ref() {
-                    ".names"  => file_mut.names = Some(Rc::new(RefCell::new(SMXNameTable::new(Rc::clone(&file_mut.header), Rc::clone(&section))))),
-                    ".dbg.strings" => file_mut.debug_names = Some(Rc::new(RefCell::new(SMXNameTable::new(Rc::clone(&file_mut.header), Rc::clone(&section))))),
-                    ".dbg.info" => file_mut.debug_info = Some(Rc::new(SMXDebugInfoSection::new(Rc::clone(&file_mut.header), Rc::clone(&section))?)),
-                    _ => (),
+                for section in &file_mut.header.sections {
+                    match section.name.as_ref() {
+                        ".names"  => file_mut.names = Some(Rc::new(RefCell::new(SMXNameTable::new(Rc::clone(&file_mut.header), Rc::clone(&section))))),
+                        ".dbg.strings" => file_mut.debug_names = Some(Rc::new(RefCell::new(SMXNameTable::new(Rc::clone(&file_mut.header), Rc::clone(&section))))),
+                        ".dbg.info" => file_mut.debug_info = Some(Rc::new(SMXDebugInfoSection::new(Rc::clone(&file_mut.header), Rc::clone(&section))?)),
+                        _ => (),
+                    }
                 }
-            }
 
-            if file_mut.debug_names.is_none() {
-                file_mut.debug_names = file_mut.names.clone();
-            }
+                if file_mut.debug_names.is_none() {
+                    file_mut.debug_names = file_mut.names.clone();
+                }
 
-            // After first pass, we have the name tables
-            for section in &file_mut.header.sections {
-                match section.name.as_ref() {
-                    ".names" | ".dbg.strings" | ".dbg.info" => (),
-                    ".natives" => file_mut.natives = Some(Rc::new(SMXNativeTable::new(Rc::clone(&file_mut.header), Rc::clone(&section), Rc::clone(file_mut.names.as_ref().unwrap()))?)),
-                    ".publics" => file_mut.publics = Some(Rc::new(SMXPublicTable::new(Rc::clone(&file_mut.header), Rc::clone(&section), Rc::clone(file_mut.names.as_ref().unwrap()))?)),
-                    ".pubvars" => file_mut.pubvars = Some(Rc::new(SMXPubvarTable::new(Rc::clone(&file_mut.header), Rc::clone(&section), Rc::clone(file_mut.names.as_ref().unwrap()))?)),
-                    ".tags" => file_mut.tags = Some(Rc::new(SMXTagTable::new(Rc::clone(&file_mut.header), Rc::clone(&section), Rc::clone(file_mut.names.as_ref().unwrap()))?)),
-                    ".data" => file_mut.data = Some(Rc::new(SMXDataSection::new(Rc::clone(&file_mut.header), Rc::clone(&section))?)),
-                    ".code" => file_mut.codev1 = Some(Rc::new(SMXCodeV1Section::new(Rc::clone(&file_mut.header), Rc::clone(&section))?)),
-                    ".dbg.files" => file_mut.debug_files = Some(Rc::new(SMXDebugFilesTable::new(Rc::clone(&file_mut.header), Rc::clone(&section), Rc::clone(file_mut.names.as_ref().unwrap()))?)),
-                    ".dbg.lines" => file_mut.debug_lines = Some(Rc::new(SMXDebugLinesTable::new(Rc::clone(&file_mut.header), Rc::clone(&section))?)),
-                    // .dbg.natives and .dbg.symbols is unimplemented due to being legacy
-                    ".dbg.methods" => file_mut.debug_methods = Some(Rc::new(SMXDebugMethods::new(Rc::clone(&file_mut.header), Rc::clone(&section))?)), // names param is excluded as it's not used
-                    ".dbg.globals" => file_mut.debug_globals = Some(Rc::new(RefCell::new(SMXDebugGlobals::new(Rc::clone(&file_mut.header), Rc::clone(&section))?))),
-                    ".dbg.locals" => file_mut.debug_locals = Some(Rc::new(SMXDebugLocals::new(Rc::clone(&file), Rc::clone(&file_mut.header), Rc::clone(&section))?)),
-                    "rtti.data" => file_mut.rtti_data = Some(Rc::new(SMXRTTIData::new(Rc::clone(&file), Rc::clone(&file_mut.header), Rc::clone(&section)))),
-                    "rtti.classdefs" => file.borrow_mut().rtti_classdefs = Some(Rc::new(SMXRTTIClassDefTable::new(Rc::clone(&file_mut.header), Rc::clone(&section), Rc::clone(file_mut.names.as_ref().unwrap()))?)),
-                    "rtti.enumstructs" => file.borrow_mut().rtti_enum_structs = Some(Rc::new(SMXRTTIEnumStructTable::new(Rc::clone(&file_mut.header), Rc::clone(&section), Rc::clone(file_mut.names.as_ref().unwrap()))?)),
-                    "rtti.enumstruct_fields" => file.borrow_mut().rtti_enum_struct_fields = Some(Rc::new(SMXRTTIEnumStructFieldTable::new(Rc::clone(&file_mut.header), Rc::clone(&section), Rc::clone(file_mut.names.as_ref().unwrap()))?)),
-                    "rtti.fields" => file.borrow_mut().rtti_fields = Some(Rc::new(SMXRTTIFieldTable::new(Rc::clone(&file_mut.header), Rc::clone(&section), Rc::clone(file_mut.names.as_ref().unwrap()))?)),
-                    "rtti.methods" => file.borrow_mut().rtti_methods = Some(Rc::new(SMXRTTIMethodTable::new(Rc::clone(&file_mut.header), Rc::clone(&section), Rc::clone(file_mut.names.as_ref().unwrap()))?)),
-                    "rtti.natives" => file.borrow_mut().rtti_natives = Some(Rc::new(SMXRTTINativeTable::new(Rc::clone(&file_mut.header), Rc::clone(&section), Rc::clone(file_mut.names.as_ref().unwrap()))?)),
-                    "rtti.enums" => file.borrow_mut().rtti_enums = Some(Rc::new(SMXRTTIEnumTable::new(Rc::clone(&file_mut.header), Rc::clone(&section), Rc::clone(file_mut.names.as_ref().unwrap()))?)),
-                    "rtti.typedefs" => file.borrow_mut().rtti_typedefs = Some(Rc::new(SMXRTTITypedefTable::new(Rc::clone(&file_mut.header), Rc::clone(&section), Rc::clone(file_mut.names.as_ref().unwrap()))?)),
-                    "rtti.typesets" => file.borrow_mut().rtti_typesets = Some(Rc::new(SMXRTTITypesetTable::new(Rc::clone(&file_mut.header), Rc::clone(&section), Rc::clone(file_mut.names.as_ref().unwrap()))?)),
-                    _ =>  file.borrow_mut().unknown_sections.push(Rc::clone(&section)),
+                // After first pass, we have the name tables
+                for section in &file_mut.header.sections {
+                    match section.name.as_ref() {
+                        ".names" | ".dbg.strings" | ".dbg.info" => (),
+                        ".natives" => file_mut.natives = Some(Rc::new(SMXNativeTable::new(Rc::clone(&file_mut.header), Rc::clone(&section), Rc::clone(file_mut.names.as_ref().unwrap()))?)),
+                        ".publics" => file_mut.publics = Some(Rc::new(SMXPublicTable::new(Rc::clone(&file_mut.header), Rc::clone(&section), Rc::clone(file_mut.names.as_ref().unwrap()))?)),
+                        ".pubvars" => file_mut.pubvars = Some(Rc::new(SMXPubvarTable::new(Rc::clone(&file_mut.header), Rc::clone(&section), Rc::clone(file_mut.names.as_ref().unwrap()))?)),
+                        ".tags" => file_mut.tags = Some(Rc::new(SMXTagTable::new(Rc::clone(&file_mut.header), Rc::clone(&section), Rc::clone(file_mut.names.as_ref().unwrap()))?)),
+                        ".data" => file_mut.data = Some(Rc::new(SMXDataSection::new(Rc::clone(&file_mut.header), Rc::clone(&section))?)),
+                        ".code" => file_mut.codev1 = Some(Rc::new(SMXCodeV1Section::new(Rc::clone(&file_mut.header), Rc::clone(&section))?)),
+                        ".dbg.files" => file_mut.debug_files = Some(Rc::new(SMXDebugFilesTable::new(Rc::clone(&file_mut.header), Rc::clone(&section), Rc::clone(file_mut.names.as_ref().unwrap()))?)),
+                        ".dbg.lines" => file_mut.debug_lines = Some(Rc::new(SMXDebugLinesTable::new(Rc::clone(&file_mut.header), Rc::clone(&section))?)),
+                        // .dbg.natives and .dbg.symbols is unimplemented due to being legacy
+                        ".dbg.methods" => file_mut.debug_methods = Some(Rc::new(SMXDebugMethods::new(Rc::clone(&file_mut.header), Rc::clone(&section))?)), // names param is excluded as it's not used
+                        ".dbg.globals" => file_mut.debug_globals = Some(Rc::new(RefCell::new(SMXDebugGlobals::new(Rc::clone(&file_mut.header), Rc::clone(&section))?))),
+                        ".dbg.locals" => file_mut.debug_locals = Some(Rc::new(SMXDebugLocals::new(Rc::clone(&file), Rc::clone(&file_mut.header), Rc::clone(&section))?)),
+                        "rtti.data" => file_mut.rtti_data = Some(Rc::new(SMXRTTIData::new(Rc::clone(&file), Rc::clone(&file_mut.header), Rc::clone(&section)))),
+                        "rtti.classdefs" => file_mut.rtti_classdefs = Some(Rc::new(SMXRTTIClassDefTable::new(Rc::clone(&file_mut.header), Rc::clone(&section), Rc::clone(file_mut.names.as_ref().unwrap()))?)),
+                        "rtti.enumstructs" => file_mut.rtti_enum_structs = Some(Rc::new(SMXRTTIEnumStructTable::new(Rc::clone(&file_mut.header), Rc::clone(&section), Rc::clone(file_mut.names.as_ref().unwrap()))?)),
+                        "rtti.enumstruct_fields" => file_mut.rtti_enum_struct_fields = Some(Rc::new(SMXRTTIEnumStructFieldTable::new(Rc::clone(&file_mut.header), Rc::clone(&section), Rc::clone(file_mut.names.as_ref().unwrap()))?)),
+                        "rtti.fields" => file_mut.rtti_fields = Some(Rc::new(SMXRTTIFieldTable::new(Rc::clone(&file_mut.header), Rc::clone(&section), Rc::clone(file_mut.names.as_ref().unwrap()))?)),
+                        "rtti.methods" => file_mut.rtti_methods = Some(Rc::new(SMXRTTIMethodTable::new(Rc::clone(&file_mut.header), Rc::clone(&section), Rc::clone(file_mut.names.as_ref().unwrap()))?)),
+                        "rtti.natives" => file_mut.rtti_natives = Some(Rc::new(SMXRTTINativeTable::new(Rc::clone(&file_mut.header), Rc::clone(&section), Rc::clone(file_mut.names.as_ref().unwrap()))?)),
+                        "rtti.enums" => file_mut.rtti_enums = Some(Rc::new(SMXRTTIEnumTable::new(Rc::clone(&file_mut.header), Rc::clone(&section), Rc::clone(file_mut.names.as_ref().unwrap()))?)),
+                        "rtti.typedefs" => file_mut.rtti_typedefs = Some(Rc::new(SMXRTTITypedefTable::new(Rc::clone(&file_mut.header), Rc::clone(&section), Rc::clone(file_mut.names.as_ref().unwrap()))?)),
+                        "rtti.typesets" => file_mut.rtti_typesets = Some(Rc::new(SMXRTTITypesetTable::new(Rc::clone(&file_mut.header), Rc::clone(&section), Rc::clone(file_mut.names.as_ref().unwrap()))?)),
+                        _ =>  file_mut.unknown_sections.push(Rc::clone(&section)),
+                    }
                 }
             }
 
             // Legacy debug symbols table is skipped
 
-            if file_mut.publics.is_some() {
-                for pubfun in file_mut.publics.as_ref().unwrap().entries_ref() {
-                    V1Disassembler::diassemble(Rc::clone(&file), Rc::clone(file.borrow().codev1.as_ref().unwrap()), pubfun.address as i32)?;
+            if file.borrow_mut().publics.is_some() {
+                for pubfun in file.borrow().publics.as_ref().unwrap().entries_ref() {
+                    V1Disassembler::diassemble(Rc::clone(&file), file.borrow().header.data.clone(), Rc::clone(file.borrow().codev1.as_ref().unwrap()), pubfun.address as i32)?;
                 }
             }
 
-            if file_mut.called_functions.is_some() {
-                for fun in file_mut.called_functions.as_ref().unwrap().borrow().entries_ref() {
-                    V1Disassembler::diassemble(Rc::clone(&file), Rc::clone(file.borrow().codev1.as_ref().unwrap()), fun.address as i32)?;
+            if file.borrow().called_functions.is_some() {
+                for fun in file.borrow().called_functions.as_ref().unwrap().borrow().entries_ref() {
+                    V1Disassembler::diassemble(Rc::clone(&file), file.borrow().header.data.clone(), Rc::clone(file.borrow().codev1.as_ref().unwrap()), fun.address as i32)?;
                 }
             }
         }
@@ -120,8 +122,8 @@ impl SMXFile {
         if self.debug_globals.is_some() {
             let sym = self.debug_globals.as_mut().unwrap().borrow_mut().find_global(addr);
 
-            if sym.is_some() {
-                return Some(self.names.as_mut().unwrap().borrow_mut().string_at(sym.unwrap().name_offset).unwrap());
+            if let Some(symsome) = sym {
+                return Some(self.names.as_mut().unwrap().borrow_mut().string_at(symsome.name_offset).unwrap());
             }
         }
 
@@ -132,8 +134,8 @@ impl SMXFile {
         if self.debug_locals.is_some() {
             let entry = self.debug_locals.as_ref().unwrap().find_local(code_addr, addr);
 
-            if entry.is_some() {
-                return Some(self.names.as_mut().unwrap().borrow_mut().string_at(entry.unwrap().name_offset).unwrap());
+            if let Some(entrysome) = entry {
+                return Some(self.names.as_mut().unwrap().borrow_mut().string_at(entrysome.name_offset).unwrap());
             }
         }
 

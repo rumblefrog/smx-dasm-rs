@@ -1,6 +1,7 @@
 use std::rc::Rc;
 use std::cell::RefCell;
 use std::collections::HashMap;
+use std::io::Cursor;
 use crate::headers::{SMXHeader, SectionEntry};
 use crate::v1types::*;
 use crate::rtti::{SMXRTTIListTable, RTTIMethod};
@@ -69,6 +70,10 @@ impl SMXNameTable {
         self.extends.clone()
     }
 
+    pub fn names(&self) -> HashMap<i32, String> {
+        self.names.clone()
+    }
+
     // Returns a string at a given index.
     pub fn string_at(&mut self, index: i32) -> Result<String> {
         if self.names.contains_key(&index) {
@@ -89,7 +94,11 @@ impl SMXNameTable {
             str_vec.push(self.base.header.data[(self.base.section.data_offset + i) as usize]);
         }
 
-        Ok(String::from_utf8_lossy(&str_vec[..]).into_owned())
+        let s = String::from_utf8_lossy(&str_vec[..]).into_owned();
+
+        self.names.insert(index, s.clone());
+
+        Ok(s)
     }
 }
 
@@ -397,8 +406,9 @@ impl SMXCodeV1Section {
         self.code_header.clone()
     }
 
+    // Compute an absolute offset to where the code stream begins.
     pub fn code_start(&self) -> i32 {
-        self.base.header.data_offset + self.code_header.code_offset
+        self.base.section.data_offset + self.code_header.code_offset
     }
 }
 
@@ -557,17 +567,23 @@ impl SMXDebugMethods {
         let base = BaseSection::new(Rc::clone(&header), Rc::clone(&section));
         let mut rtti = SMXRTTIListTable::new(Rc::clone(&header), Rc::clone(&section));
 
-        rtti.init(base.get_data())?;
+        let mut data = Cursor::new(base.get_data());
+
+        rtti.init(&mut data)?;
 
         let mut entries: Vec<DebugMethodEntry> = Vec::with_capacity(rtti.row_count() as usize);
 
         for _ in 0..rtti.row_count() {
-            entries.push(DebugMethodEntry::new(base.get_data())?)
+            entries.push(DebugMethodEntry::new(&mut data)?)
         }
 
         Ok(Self {
             entries,
         })
+    }
+
+    pub fn entries(&self) -> Vec<DebugMethodEntry> {
+        self.entries.clone()
     }
 
     pub fn entries_ref(&self) -> &Vec<DebugMethodEntry> {
@@ -576,6 +592,10 @@ impl SMXDebugMethods {
 
     pub fn len(&self) -> usize {
         self.entries.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.entries.is_empty()
     }
 }
 
@@ -592,12 +612,14 @@ impl SMXDebugSymbols {
         let base = BaseSection::new(Rc::clone(&header), Rc::clone(&section));
         let mut rtti = SMXRTTIListTable::new(header, section);
 
-        rtti.init(base.get_data())?;
+        let mut data = Cursor::new(base.get_data());
+
+        rtti.init(&mut data)?;
 
         let mut entries: Vec<DebugVarEntry> = Vec::with_capacity(rtti.row_count() as usize);
 
         for _ in 0..rtti.row_count() {
-            entries.push(DebugVarEntry::new(base.get_data())?)
+            entries.push(DebugVarEntry::new(&mut data)?)
         }
 
         Ok(Self {
@@ -676,9 +698,13 @@ impl SMXDebugGlobals {
 
         None
     }
+
+    pub fn symbol_entries(&self) -> Vec<DebugVarEntry> {
+        self.debug_symbols.entries()
+    }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct SMXDebugLocals {
     file: Rc<RefCell<SMXFile>>,
     debug_symbols: SMXDebugSymbols,
@@ -742,6 +768,10 @@ impl SMXDebugLocals {
         }
 
         None
+    }
+
+    pub fn symbol_entries(&self) -> Vec<DebugVarEntry> {
+        self.debug_symbols.entries()
     }
 }
 

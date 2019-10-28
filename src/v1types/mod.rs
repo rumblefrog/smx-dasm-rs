@@ -174,7 +174,7 @@ impl NativeEntry {
     where
         T: AsRef<[u8]>,
     {
-        if section.size & Self::SIZE != 0 {
+        if section.size % Self::SIZE != 0 {
             return Err(Error::InvalidSize)
         }
 
@@ -217,7 +217,7 @@ impl PubvarEntry {
     where
         T: AsRef<[u8]>,
     {
-        if section.size & Self::SIZE != 0 {
+        if section.size % Self::SIZE != 0 {
             return Err(Error::InvalidSize)
         }
 
@@ -277,7 +277,7 @@ impl TagEntry {
     where
         T: AsRef<[u8]>,
     {
-        if section.size & NativeEntry::SIZE != 0 {
+        if section.size % NativeEntry::SIZE != 0 {
             return Err(Error::InvalidSize)
         }
 
@@ -350,7 +350,7 @@ impl DebugFileEntry {
     where
         T: AsRef<[u8]>,
     {
-        if section.size & Self::SIZE != 0 {
+        if section.size % Self::SIZE != 0 {
             return Err(Error::InvalidSize)
         }
 
@@ -392,7 +392,7 @@ impl DebugLineEntry {
     where
         T: AsRef<[u8]>,
     {
-        if section.size & Self::SIZE != 0 {
+        if section.size % Self::SIZE != 0 {
             return Err(Error::InvalidSize)
         }
 
@@ -458,12 +458,7 @@ pub struct DebugMethodEntry {
 }
 
 impl DebugMethodEntry {
-    pub fn new<T>(data: T) -> Result<Self>
-    where
-        T: AsRef<[u8]>,
-    {
-        let mut cursor = Cursor::new(data);
-
+    pub fn new(cursor: &mut Cursor<Vec<u8>>) -> Result<Self> {
         Ok(Self {
             method_index: cursor.read_i32::<LittleEndian>()?,
             first_local: cursor.read_i32::<LittleEndian>()?,
@@ -488,12 +483,8 @@ pub struct DebugVarEntry {
 }
 
 impl DebugVarEntry {
-    pub fn new<T>(data: T) -> Result<Self>
-    where
-        T: AsRef<[u8]>,
+    pub fn new(cursor: &mut Cursor<Vec<u8>>) -> Result<Self>
     {
-        let mut cursor = Cursor::new(data);
-
         Ok(Self {
             address: cursor.read_i32::<LittleEndian>()?,
             scope: SymbolScope::from(cursor.read_u8()?),

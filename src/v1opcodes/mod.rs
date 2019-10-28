@@ -5,6 +5,7 @@ use num_enum::TryFromPrimitive;
 #[derive(Debug, Clone, PartialEq, TryFromPrimitive)]
 #[repr(u8)]
 pub enum V1OPCode {
+    NONE,
     LOAD_PRI, 
     LOAD_ALT, 
     LOAD_S_PRI,

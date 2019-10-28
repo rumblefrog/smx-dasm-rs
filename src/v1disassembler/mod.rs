@@ -1,5 +1,6 @@
 use std::rc::Rc;
 use std::cell::RefCell;
+use std::collections::HashMap;
 use std::io::{Cursor, Seek, SeekFrom};
 use byteorder::{ReadBytesExt, LittleEndian};
 use std::convert::TryFrom;
@@ -33,13 +34,15 @@ pub struct V1Instruction {
 }
 
 lazy_static! {
-    static ref OPCODE_LIST: Vec<V1OPCodeInfo> = {
-        let mut m = Vec::with_capacity(V1OPCode::TOTAL_OPCODES as usize);
+    static ref OPCODE_LIST: HashMap<u32, V1OPCodeInfo> = {
+        let mut m = HashMap::new();
 
         let mut prep = |op: V1OPCode, params: &'static [V1Param]| {
-            let name: String = (&op).to_string().replace("_", ".").to_lowercase();
+            let name: String = op.to_string().replace("_", ".").to_lowercase();
 
-            m.push(V1OPCodeInfo {
+            let i: u32 = op.clone() as u32;
+
+            m.insert(i, V1OPCodeInfo {
                 opcode: op,
                 name,
                 params: params.to_vec(),
@@ -191,10 +194,10 @@ pub struct V1Disassembler {
 }
 
 impl V1Disassembler {
-    pub fn new(file: Rc<RefCell<SMXFile>>, code: Rc<SMXCodeV1Section>, proc_offset: i32) -> Self {
+    pub fn new(file: Rc<RefCell<SMXFile>>, data: Vec<u8>, code: Rc<SMXCodeV1Section>, proc_offset: i32) -> Self {
         Self {
             file: Rc::clone(&file),
-            data: file.borrow().header.data.clone(),
+            data,
             code_start: code.code_start(),
             _proc_offset: proc_offset,
             cursor: proc_offset,
@@ -238,7 +241,7 @@ impl V1Disassembler {
 
             let mut insn: V1Instruction = V1Instruction {
                 address,
-                info: OPCODE_LIST[op as usize].clone(),
+                info: OPCODE_LIST.get(&(op as u32)).unwrap().clone(),
                 params: Vec::new(),
             };
 
@@ -269,7 +272,7 @@ impl V1Disassembler {
             if op == V1OPCode::CALL as i32 {
                 let addr: i32 = insn.params[0];
 
-                if !self.file.borrow_mut().is_function_at_address(addr) {
+                if !self.file.borrow().is_function_at_address(addr) {
                     self.file.borrow_mut().called_functions.as_mut().unwrap().borrow_mut().add_function(addr as u32);
                 }
             }
@@ -280,8 +283,8 @@ impl V1Disassembler {
         Ok(insns)
     }
 
-    pub fn diassemble(file: Rc<RefCell<SMXFile>>, code: Rc<SMXCodeV1Section>, proc_offset: i32) -> Result<Vec<V1Instruction>> {
-        let mut disassembler: V1Disassembler = V1Disassembler::new(file, code, proc_offset);
+    pub fn diassemble(file: Rc<RefCell<SMXFile>>, data: Vec<u8>, code: Rc<SMXCodeV1Section>, proc_offset: i32) -> Result<Vec<V1Instruction>> {
+        let mut disassembler: V1Disassembler = V1Disassembler::new(file, data, code, proc_offset);
 
         disassembler.diassemble_internal()
     }
