@@ -487,7 +487,7 @@ impl DebugVarEntry {
     {
         Ok(Self {
             address: cursor.read_i32::<LittleEndian>()?,
-            scope: SymbolScope::from(cursor.read_u8()?),
+            scope: SymbolScope::from(cursor.read_u8()? & 3),
             name_offset: cursor.read_i32::<LittleEndian>()?,
             code_start: cursor.read_i32::<LittleEndian>()?,
             code_end: cursor.read_i32::<LittleEndian>()?,

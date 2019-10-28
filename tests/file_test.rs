@@ -281,12 +281,14 @@ fn test_file() {
         let globals = opt.borrow();
         println!("========== Debug Globals ==========");
         for g in &globals.symbol_entries() {
+            println!("======");
             println!("Address: {}", g.address);
             println!("Scope: {}", g.scope);
             println!("Name Offset: {}", g.name_offset);
             println!("Code Start: {}", g.code_start);
             println!("Code End: {}", g.code_end);
             println!("Type ID: {}", g.type_id);
+            println!("======");
         }
         println!("========== Debug Globals ==========");
     }
@@ -294,12 +296,14 @@ fn test_file() {
     if let Some(opt) = &f.debug_locals {
         println!("========== Debug Locals ==========");
         for l in &opt.symbol_entries() {
+            println!("======");
             println!("Address: {}", l.address);
             println!("Scope: {}", l.scope);
             println!("Name Offset: {}", l.name_offset);
             println!("Code Start: {}", l.code_start);
             println!("Code End: {}", l.code_end);
             println!("Type ID: {}", l.type_id);
+            println!("======");
         }
         println!("========== Debug Locals ==========");
     }

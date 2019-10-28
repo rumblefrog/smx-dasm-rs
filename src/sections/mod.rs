@@ -111,7 +111,7 @@ pub struct SMXNativeTable {
 impl SMXNativeTable {
     pub fn new(header: Rc<SMXHeader>, section: Rc<SectionEntry>, names: Rc<RefCell<SMXNameTable>>) -> Result<Self> {
         let base = BaseSection::new(Rc::clone(&header), Rc::clone(&section));
-        let natives = NativeEntry::new(&base.get_data(), Rc::clone(&section), Rc::clone(&names))?;
+        let natives = NativeEntry::new(&base.get_data(), section, names)?;
 
         Ok(Self {
             natives,
@@ -142,7 +142,7 @@ pub struct SMXPublicTable {
 impl SMXPublicTable {
     pub fn new(header: Rc<SMXHeader>, section: Rc<SectionEntry>, names: Rc<RefCell<SMXNameTable>>) -> Result<Self> {
         let base = BaseSection::new(Rc::clone(&header), Rc::clone(&section));
-        let publics = PublicEntry::new(base.get_data(), Rc::clone(&section), Rc::clone(&names))?;
+        let publics = PublicEntry::new(base.get_data(), section, names)?;
 
         Ok(Self {
             publics,
@@ -215,7 +215,7 @@ pub struct SMXPubvarTable {
 impl SMXPubvarTable {
     pub fn new(header: Rc<SMXHeader>, section: Rc<SectionEntry>, names: Rc<RefCell<SMXNameTable>>) -> Result<Self> {
         let base = BaseSection::new(Rc::clone(&header), Rc::clone(&section));
-        let public_variables = PubvarEntry::new(base.get_data(), Rc::clone(&section), Rc::clone(&names))?;
+        let public_variables = PubvarEntry::new(base.get_data(), section, names)?;
 
         Ok(Self {
             public_variables,
@@ -292,7 +292,7 @@ pub struct SMXTagTable {
 impl SMXTagTable {
     pub fn new(header: Rc<SMXHeader>, section: Rc<SectionEntry>, names: Rc<RefCell<SMXNameTable>>) -> Result<Self> {
         let base = BaseSection::new(Rc::clone(&header), Rc::clone(&section));
-        let tags = TagEntry::new(base.get_data(), Rc::clone(&section), Rc::clone(&names))?;
+        let tags = TagEntry::new(base.get_data(), section, names)?;
 
         let mut tt = Self {
             tags: Vec::new(),
@@ -454,7 +454,7 @@ pub struct SMXDebugFilesTable {
 impl SMXDebugFilesTable {
     pub fn new(header: Rc<SMXHeader>, section: Rc<SectionEntry>, names: Rc<RefCell<SMXNameTable>>) -> Result<Self> {
         let base = BaseSection::new(Rc::clone(&header), Rc::clone(&section));
-        let entries = DebugFileEntry::new(base.get_data(), Rc::clone(&section), Rc::clone(&names))?;
+        let entries = DebugFileEntry::new(base.get_data(), section, names)?;
 
         Ok(Self {
             entries,
@@ -510,7 +510,7 @@ pub struct SMXDebugLinesTable {
 impl SMXDebugLinesTable {
     pub fn new(header: Rc<SMXHeader>, section: Rc<SectionEntry>) -> Result<Self> {
         let base = BaseSection::new(Rc::clone(&header), Rc::clone(&section));
-        let entries = DebugLineEntry::new(base.get_data(), Rc::clone(&section))?;
+        let entries = DebugLineEntry::new(base.get_data(), section)?;
 
         Ok(Self {
             entries,
@@ -565,7 +565,7 @@ pub struct SMXDebugMethods {
 impl SMXDebugMethods {
     pub fn new(header: Rc<SMXHeader>, section: Rc<SectionEntry>) -> Result<Self> {
         let base = BaseSection::new(Rc::clone(&header), Rc::clone(&section));
-        let mut rtti = SMXRTTIListTable::new(Rc::clone(&header), Rc::clone(&section));
+        let mut rtti = SMXRTTIListTable::new(header, section);
 
         let mut data = Cursor::new(base.get_data());
 
