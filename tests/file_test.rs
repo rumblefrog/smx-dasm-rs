@@ -11,8 +11,17 @@ fn test_file() {
 
     file.read_to_end(&mut data).unwrap();
 
-    let c = smxdasm::file::SMXFile::new(data).unwrap();
-    let f = c.borrow();
+    let c = smxdasm::file::SMXFile::new(data);
+
+    let p = match c {
+        Err(e) => {
+            println!("{}",  e);
+            return;
+        },
+        Ok(ce) => ce,
+    };
+
+    let f = p.borrow();
 
     println!("========== HEADER ==========");
     println!("Magic: {}", f.header.magic);

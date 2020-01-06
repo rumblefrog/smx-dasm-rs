@@ -29,7 +29,13 @@ impl Display for Error {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match *self {
             Error::Io(ref inner) => inner.fmt(f),
-            _ => f.write_str("dnno"),
+            Error::InvalidMagic => write!(f, "Invalid magic header"),
+            Error::InvalidSize => write!(f, "Invalid size"),
+            Error::InvalidOffset => write!(f, "Invalid offset"),
+            Error::InvalidIndex => write!(f, "Invalid index"),
+            Error::OffsetOverflow => write!(f, "Offset overflow"),
+            Error::SizeOverflow => write!(f, "Size overflow"),
+            Error::Other(msg) => write!(f, "{}", msg),
         }
     }
 }
