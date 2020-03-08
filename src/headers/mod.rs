@@ -126,8 +126,26 @@ impl SMXHeader {
     // version higher than the current version should be rejected.
     pub const SP1_VERSION_1_0: u16 = 0x0101;
     pub const SP1_VERSION_1_1: u16 = 0x0102;
+    pub const SP1_VERSION_1_7: u16 = 0x0107;
     pub const SP1_VERSION_MIN: u16 = SMXHeader::SP1_VERSION_1_0;
-    pub const SP1_VERSION_MAX: u16 = SMXHeader::SP1_VERSION_1_1;
+    pub const SP1_VERSION_MAX: u16 = SMXHeader::SP1_VERSION_1_7;
+
+    // Version 9: Initial version.
+    // Version 10: DEBUG code flag removed; no bytecode changes.
+    // Version 11: Not used; no changes.
+    // Version 12: PROC/RETN semantic changes.
+    // Version 13: Feature flags in code headers.
+    pub const CODE_VERSION_MINIMUM: u8 = 9;
+    pub const CODE_VERSION_SM_LEGACY: u8 = 10;
+    pub const CODE_VERSION_FEATURE_MASK: u8 = 13;
+    pub const CODE_VERSION_CURRENT: u8 = SMXHeader::CODE_VERSION_FEATURE_MASK;
+    pub const CODE_VERSION_ALWAYS_REJECT: u8 = 0x7f;
+
+    pub const K_CODE_FEATURE_DEPRECATED_0: u32 = (1 << 0);
+
+    // This feature adds the INIT_ARRAY opcode, and requires that multi-dimensional
+    // arrays use direct internal addressing.
+    pub const K_CODE_FEATURE_DIRECT_ARRAYS: u32 = (1 << 1);
 
     // Size of the header.
     const HEADER_SIZE: i32 = 24;

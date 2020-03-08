@@ -34,7 +34,10 @@ pub struct CodeV1Header {
     // Offset to the code section.
     pub code_offset: i32,
 
-    // Feature set.
+    // This field is only guaranteed to be present when codeversion >= 13 or
+    // higher. Note that newer spcomp versions will still include a 0-filled
+    // value. This is legal since anything between the end of the code header
+    // and the code buffer is undefined. The field should still be ignored.
     pub features: i32,
 }
 
