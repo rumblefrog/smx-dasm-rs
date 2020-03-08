@@ -1,6 +1,5 @@
  use std::fmt::{Display, Formatter};
 
-use std::error::Error as StdError;
 use std::io::Error as IoError;
 
 pub type Result<T> = std::result::Result<T, Error>;
@@ -36,28 +35,6 @@ impl Display for Error {
             Error::OffsetOverflow => write!(f, "Offset overflow"),
             Error::SizeOverflow => write!(f, "Size overflow"),
             Error::Other(msg) => write!(f, "{}", msg),
-        }
-    }
-}
-
-impl StdError for Error {
-    fn description(&self) -> &str {
-        match *self {
-            Error::Io(ref inner) => inner.description(),
-            Error::InvalidMagic => "Invalid magic header",
-            Error::InvalidSize => "Invalid size",
-            Error::InvalidOffset => "Invalid offset",
-            Error::InvalidIndex => "Invalid index",
-            Error::OffsetOverflow => "Offset overflow",
-            Error::SizeOverflow => "Size overflow",
-            Error::Other(msg) => msg,
-        }
-    }
-
-    fn cause(&self) -> Option<&dyn StdError> {
-        match *self {
-            Error::Io(ref inner) => Some(inner),
-            _ => None,
         }
     }
 }

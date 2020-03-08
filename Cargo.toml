@@ -1,6 +1,6 @@
 [package]
 name = "smxdasm"
-version = "0.1.0"
+version = "0.2.0"
 description = "A library for disassembling SMX"
 repository = "https://github.com/rumblefrog/smx-dasm-rs"
 license = "GPL-3.0"
